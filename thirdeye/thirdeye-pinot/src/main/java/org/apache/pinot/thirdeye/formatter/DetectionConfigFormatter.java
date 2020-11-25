@@ -20,6 +20,11 @@
 
 package org.apache.pinot.thirdeye.formatter;
 
+import static org.apache.pinot.thirdeye.detection.validators.DetectionConfigValidator.PROP_DATASET;
+import static org.apache.pinot.thirdeye.detection.validators.DetectionConfigValidator.PROP_METRIC;
+import static org.apache.pinot.thirdeye.detection.validators.DetectionConfigValidator.PROP_RULES;
+import static org.apache.pinot.thirdeye.detection.yaml.translator.builder.DetectionConfigPropertiesBuilder.PROP_DIMENSION_EXPLORATION;
+import static org.apache.pinot.thirdeye.detection.yaml.translator.builder.DetectionConfigPropertiesBuilder.PROP_FILTERS;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,9 +54,6 @@ import org.apache.pinot.thirdeye.rootcause.impl.MetricEntity;
 import org.joda.time.Period;
 import org.joda.time.PeriodType;
 import org.yaml.snakeyaml.Yaml;
-
-import static org.apache.pinot.thirdeye.detection.validators.DetectionConfigValidator.*;
-import static org.apache.pinot.thirdeye.detection.yaml.translator.builder.DetectionConfigPropertiesBuilder.*;
 
 
 /**
@@ -128,7 +130,7 @@ public class DetectionConfigFormatter implements DTOFormatter<DetectionConfigDTO
     Map<String, Object> yamlObject;
     // synchronize on yaml parser because it is not thread safe
     synchronized (this.yaml) {
-      yamlObject = ConfigUtils.getMap(this.yaml.load(config.getYaml()));
+      yamlObject = ConfigUtils.getMap(this.yaml.load(config.getYaml() == null? "": config.getYaml()));
     }
     Map<String, DatasetConfigDTO> metricUrnToDatasets = metricUrns.stream().collect(Collectors.toMap(metricUrn -> metricUrn,
       metricUrn -> getDatasetForMetricUrn(metricUrn, metricUrnToMetricDTOs), (d1, d2) -> d1));

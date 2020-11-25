@@ -19,6 +19,8 @@
 
 package org.apache.pinot.thirdeye.detection;
 
+import static org.apache.pinot.thirdeye.dataframe.util.DataFrameUtils.COL_CURRENT;
+import static org.apache.pinot.thirdeye.dataframe.util.DataFrameUtils.COL_VALUE;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -93,8 +95,6 @@ import org.joda.time.Interval;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.pinot.thirdeye.dataframe.util.DataFrameUtils.*;
 
 
 @Produces(MediaType.APPLICATION_JSON)
@@ -188,7 +188,11 @@ public class DetectionResource {
     List<DetectionAlertConfigDTO> detectionAlertConfigDTOs = this.detectionAlertConfigDAO.findAll();
     Set<DetectionAlertConfigDTO> subscriptionGroupAlertDTOs = new HashSet<>();
     for (DetectionAlertConfigDTO alertConfigDTO : detectionAlertConfigDTOs){
-      if (alertConfigDTO.getVectorClocks().containsKey(id) || ConfigUtils.getLongs(alertConfigDTO.getProperties().get("detectionConfigIds")).contains(id)){
+      final Map<Long, Long> vectorClocks =
+          alertConfigDTO.getVectorClocks() == null ? Collections.emptyMap()
+              : alertConfigDTO.getVectorClocks();
+
+      if (vectorClocks.containsKey(id) || ConfigUtils.getLongs(alertConfigDTO.getProperties().get("detectionConfigIds")).contains(id)){
         subscriptionGroupAlertDTOs.add(alertConfigDTO);
       }
     }

@@ -43,7 +43,9 @@ public class DetectionAlertConfigFormatter implements DTOFormatter<DetectionAler
     output.put(ATTR_YAML, config.getYaml());
     output.put(ATTR_ID, config.getId());
     output.put(ATTR_ACTIVE, config.isActive());
-    output.put(ATTR_DETECTION_CONFIG_IDS, config.getVectorClocks().keySet());
+    if (config.getVectorClocks() != null) {
+      output.put(ATTR_DETECTION_CONFIG_IDS, config.getVectorClocks().keySet());
+    }
     output.put(ATTR_APPLICATION, config.getApplication());
     return output;
   }
