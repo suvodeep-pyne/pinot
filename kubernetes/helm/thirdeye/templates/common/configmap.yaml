@@ -90,10 +90,12 @@ data:
           port: 1868
     alert: true
     autoload: true
-    # autoOnboardConfiguration:
-    #   runFrequency: 10s
+    autoOnboardConfiguration:
+      runFrequency:
+        size: 15
+        unit: SECONDS
 
-    holidayEventsLoader: true
+    holidayEventsLoader: false
     monitor: true
     pinotProxy: false
     scheduler: true
