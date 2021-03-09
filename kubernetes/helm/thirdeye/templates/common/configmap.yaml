@@ -95,7 +95,7 @@ data:
         size: 15
         unit: SECONDS
 
-    holidayEventsLoader: false
+    holidayEventsLoader: {{ not .Values.backend.holidayLoaderKey | ternary "false" "true" }}
     monitor: true
     pinotProxy: false
     scheduler: true
@@ -119,6 +119,11 @@ data:
     phantomJsPath: "/usr/local/bin/jstf"
     swagger:
       resourcePackage: "org.apache.pinot.thirdeye.dashboard.resources,org.apache.pinot.thirdeye.dashboard.resources.v2,org.apache.pinot.thirdeye.anomaly.onboard"
+    logging:
+      level: INFO
+      loggers:
+        org.apache.pinot.thirdeye: DEBUG
+        org.apache.zookeeper: WARN
     holidayEventsLoaderConfiguration:
       calendars:
            - "en.australian#holiday@group.v.calendar.google.com"
@@ -163,6 +168,7 @@ data:
     mockEventsLoader: true
     mockEventsLoaderConfiguration:
       generators:
+        {{- if not .Values.backend.holidayLoaderKey }}
         - type: HOLIDAY
           arrivalType: exponential
           arrivalMean: 86400000
@@ -171,6 +177,7 @@ data:
           seed: 0
           namePrefixes: [First, Second, Third, Last, Funky, Happy, Sad, Glorious, Jolly, Unity, Pinot's]
           nameSuffixes: [day, day, days, celebration, rememberance, occurrence, moment]
+        {{- end }}
         - type: INFORMED
           arrivalType: exponential
           arrivalMean: 43200000
@@ -250,3 +257,7 @@ data:
             trustStoreFilePath: 'trust/store/path/truststore_file' # e.g. '/etc/riddler/cacerts'
             trustStorePassword: ''
         # add your store of choice here
+
+  {{- if .Values.backend.holidayLoaderKey }}
+  holiday-loader-key.json: {{ .Values.backend.holidayLoaderKey | toPrettyJson }}
+  {{- end }}
