@@ -35,14 +35,13 @@ import org.apache.pinot.tools.admin.command.QuickstartRunner;
 import org.apache.pinot.tools.streams.MockEventStream;
 import org.apache.pinot.tools.utils.KafkaStarterUtils;
 
-
-public class RealtimeQuickStart {
-  private StreamDataServerStartable _kafkaStarter;
+public class KafkaDatasetGenerator {
+//  private StreamDataServerStartable _kafkaStarter;
 
   public static void main(String[] args)
       throws Exception {
     PluginManager.get().init();
-    new RealtimeQuickStart().execute();
+    new KafkaDatasetGenerator().execute();
   }
 
   public void execute()
@@ -58,48 +57,79 @@ public class RealtimeQuickStart {
 
     ClassLoader classLoader = Quickstart.class.getClassLoader();
     URL resource = classLoader.getResource("examples/stream/mockEvent/mockEvent_schema.json");
-    com.google.common.base.Preconditions.checkNotNull(resource);
+    Preconditions.checkNotNull(resource);
     FileUtils.copyURLToFile(resource, schemaFile);
     resource = classLoader.getResource("examples/stream/mockEvent/mockEvent_realtime_table_config.json");
-    com.google.common.base.Preconditions.checkNotNull(resource);
+    Preconditions.checkNotNull(resource);
     FileUtils.copyURLToFile(resource, tableConfigFile);
 
     QuickstartTableRequest request = new QuickstartTableRequest(baseDir.getAbsolutePath());
-    final QuickstartRunner runner = new QuickstartRunner(Lists.newArrayList(request), 1, 1, 1, dataDir);
+//    final QuickstartRunner runner = new QuickstartRunner(Lists.newArrayList(request), 1, 1, 1, dataDir);
 
     printStatus(Color.CYAN, "***** Starting Kafka *****");
-    final ZkStarter.ZookeeperInstance zookeeperInstance = ZkStarter.startLocalZkServer();
+//    final ZkStarter.ZookeeperInstance zookeeperInstance = ZkStarter.startLocalZkServer();
     try {
-      _kafkaStarter = StreamDataProvider.getServerDataStartable(KafkaStarterUtils.KAFKA_SERVER_STARTABLE_CLASS_NAME, KafkaStarterUtils.getDefaultKafkaConfiguration());
+//      _kafkaStarter = StreamDataProvider.getServerDataStartable(KafkaStarterUtils.KAFKA_SERVER_STARTABLE_CLASS_NAME, KafkaStarterUtils.getDefaultKafkaConfiguration());
     } catch (Exception e) {
       throw new RuntimeException("Failed to start " + KafkaStarterUtils.KAFKA_SERVER_STARTABLE_CLASS_NAME, e);
     }
-    _kafkaStarter.start();
-    _kafkaStarter.createTopic(MockEventStream.KAFKA_TOPIC,
-        KafkaStarterUtils.getTopicCreationProps(10));
+//    _kafkaStarter.start();
+//    _kafkaStarter.createTopic(MockEventStream.KAFKA_TOPIC,
+//        KafkaStarterUtils.getTopicCreationProps(10));
     printStatus(Color.CYAN, "***** Starting meetup data stream and publishing to Kafka *****");
     MockEventStream mockEventStream = new MockEventStream();
     mockEventStream.run();
     printStatus(Color.CYAN, "***** Starting Zookeeper, controller, server and broker *****");
-    runner.startAll();
+//    runner.startAll();
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       try {
         printStatus(Color.GREEN, "***** Shutting down realtime quick start *****");
-        runner.stop();
+//        runner.stop();
         mockEventStream.stopPublishing();
-        _kafkaStarter.stop();
-        ZkStarter.stopLocalZkServer(zookeeperInstance);
+//        _kafkaStarter.stop();
+//        ZkStarter.stopLocalZkServer(zookeeperInstance);
         FileUtils.deleteDirectory(quickstartTmpDir);
       } catch (Exception e) {
         e.printStackTrace();
       }
     }));
-    printStatus(Color.CYAN, "***** Bootstrap mockEvent table *****");
-    runner.bootstrapTable();
-    printStatus(Color.CYAN, "***** Waiting for 5 seconds for a few events to get populated *****");
-    Thread.sleep(5000);
-
-    printStatus(Color.YELLOW, "***** Realtime quickstart setup complete *****");
-    printStatus(Color.GREEN, "You can always go to http://localhost:9000 to play around in the query console");
+//    printStatus(Color.CYAN, "***** Bootstrap mockEvent table *****");
+//    runner.bootstrapTable();
+//    printStatus(Color.CYAN, "***** Waiting for 5 seconds for a few events to get populated *****");
+//    Thread.sleep(5000);
+//
+//    printStatus(Color.YELLOW, "***** Realtime quickstart setup complete *****");
+//
+//    String q1 = "select count(*) from mockEvent limit 1";
+//    printStatus(Color.YELLOW, "Total number of documents in the table");
+//    printStatus(Color.CYAN, "Query : " + q1);
+//    printStatus(Color.YELLOW, prettyPrintResponse(runner.runQuery(q1)));
+//    printStatus(Color.GREEN, "***************************************************");
+//
+//    String q2 = "select group_city, sum(rsvp_count) from mockEvent group by group_city order by sum(rsvp_count) desc limit 10";
+//    printStatus(Color.YELLOW, "Top 10 cities with the most rsvp");
+//    printStatus(Color.CYAN, "Query : " + q2);
+//    printStatus(Color.YELLOW, prettyPrintResponse(runner.runQuery(q2)));
+//    printStatus(Color.GREEN, "***************************************************");
+//
+//    String q3 = "select * from mockEvent order by mtime limit 10";
+//    printStatus(Color.YELLOW, "Show 10 most recent rsvps");
+//    printStatus(Color.CYAN, "Query : " + q3);
+//    printStatus(Color.YELLOW, prettyPrintResponse(runner.runQuery(q3)));
+//    printStatus(Color.GREEN, "***************************************************");
+//
+//    String q4 = "select event_name, sum(rsvp_count) from mockEvent group by event_name order by sum(rsvp_count) desc limit 10";
+//    printStatus(Color.YELLOW, "Show top 10 rsvp'ed events");
+//    printStatus(Color.CYAN, "Query : " + q4);
+//    printStatus(Color.YELLOW, prettyPrintResponse(runner.runQuery(q4)));
+//    printStatus(Color.GREEN, "***************************************************");
+//
+//    String q5 = "select count(*) from mockEvent limit 1";
+//    printStatus(Color.YELLOW, "Total number of documents in the table");
+//    printStatus(Color.CYAN, "Query : " + q5);
+//    printStatus(Color.YELLOW, prettyPrintResponse(runner.runQuery(q5)));
+//    printStatus(Color.GREEN, "***************************************************");
+//
+//    printStatus(Color.GREEN, "You can always go to http://localhost:9000 to play around in the query console");
   }
 }
