@@ -1,23 +1,39 @@
 {
   "metricFieldSpecs": [
     {
-      "dataType": "INT",
-      "name": "m1"
+      "name": "total",
+      "dataType": "DOUBLE"
+    },
+    {
+      "name": "orderedQuantity",
+      "dataType": "INT"
     }
   ],
   "dimensionFieldSpecs": [
     {
-      "dataType": "STRING",
-      "name": "d1"
+      "name": "orderNo",
+      "dataType": "STRING"
+    },
+    {
+      "name": "orderLineNo",
+      "dataType": "STRING"
+    },
+    {
+      "name": "itemID",
+      "dataType": "STRING"
+    },
+    {
+      "name": "status",
+      "dataType": "STRING"
     }
   ],
   "dateTimeFieldSpecs": [
     {
-      "name": "mtime",
+      "name": "epochMillis",
       "dataType": "LONG",
       "format": "1:MILLISECONDS:EPOCH",
       "granularity": "1:MILLISECONDS"
     }
   ],
-  "schemaName": "mockEvent"
+  "schemaName": "retailOrderLines"
 }

@@ -18,38 +18,50 @@
  */
 package org.apache.pinot.tools.streams;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
+import java.util.Queue;
+import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.pinot.common.utils.StringUtil;
 import org.apache.pinot.spi.stream.StreamDataProducer;
 import org.apache.pinot.spi.stream.StreamDataProvider;
-import org.apache.pinot.spi.utils.JsonUtils;
 import org.apache.pinot.tools.utils.KafkaStarterUtils;
 import org.glassfish.tyrus.client.ClientManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Properties;
-import java.util.Random;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 public class RetailOrderLineStream {
 
+  public static final String KAFKA_TOPIC = "retailOrderLines";
+  public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   protected static final Logger LOGGER = LoggerFactory.getLogger(RetailOrderLineStream.class);
-  public static final String KAFKA_TOPIC = "mockEvent";
+  private static int NEXT_ORDER_NO = 0;
+  private static Map<Status, Status> TRANSITION_MAP = ImmutableMap.of(
+      Status.ORDERED, Status.PROCESSING,
+      Status.PROCESSING, Status.SHIPPED,
+      Status.SHIPPED, Status.DELIVERED
+  );
 
   protected final boolean _partitionByKey;
   protected final StreamDataProducer _producer;
-
+  private final ScheduledExecutorService scheduledExecutorService;
+  private final Random random = new Random();
   protected ClientManager _client;
   protected volatile boolean _keepPublishing;
-  private final ScheduledExecutorService scheduledExecutorService;
-
+  private Queue<OrderLine> q = new ArrayDeque<>();
   private long counter = 0;
-  private long backFillCounter = 0;
-  private final long backfillTime = System.currentTimeMillis();
-  private final Random random = new Random();
 
   public RetailOrderLineStream()
       throws Exception {
@@ -74,23 +86,7 @@ public class RetailOrderLineStream {
     _client = ClientManager.createClient();
     _keepPublishing = true;
 
-    scheduledExecutorService.scheduleAtFixedRate(this::handleMessage,10, 59, TimeUnit.SECONDS);
-//    scheduledExecutorService.schedule(this::backfill, 20, TimeUnit.SECONDS);
-  }
-
-  private void backfill() {
-    System.out.println("STARTING BACKFILL!!!");
-    System.out.println("======================================");
-    try {
-      for (int i = 0; i < 10000; i++) {
-        final int spike = random.nextDouble() <= 0.1 ? 1000 : 0;
-        pushToKafka(newNode(backfillTime - (i * 60_000L),
-            200 + (100 * Math.sin(++backFillCounter)) + spike));
-        Thread.sleep(0);
-      }
-    } catch (Exception e) {
-      LOGGER.error("Caught exception while processing the message", e);
-    }
+    scheduledExecutorService.scheduleAtFixedRate(this::handleMessage, 10, 1, TimeUnit.SECONDS);
   }
 
   public void stopPublishing() {
@@ -102,19 +98,16 @@ public class RetailOrderLineStream {
 
   private void handleMessage() {
     try {
-      final int spike = random.nextDouble() <= 0.2 ? 2000 : 0;
-      final double value = 200 + (100 * Math.sin(++counter)) + spike;
-
-      final long timeMillis = System.currentTimeMillis();
-      pushToKafka(newNode(timeMillis, value));
-      LOGGER.info(String.format("time: %d, val: %f", timeMillis, value));
+      for (OrderLine ol : next()) {
+        pushToKafka(ol);
+      }
     } catch (Exception e) {
       LOGGER.error("Caught exception while processing the message", e);
     }
   }
 
-  private void pushToKafka(final ObjectNode json) {
-    final String payloadString = json.toString();
+  private void pushToKafka(final Object o) throws JsonProcessingException {
+    final String payloadString = OBJECT_MAPPER.writeValueAsString(o);
     if (_keepPublishing) {
       if (_partitionByKey) {
         _producer.produce(KAFKA_TOPIC, StringUtil.encodeUtf8(String.valueOf(counter)),
@@ -125,11 +118,157 @@ public class RetailOrderLineStream {
     }
   }
 
-  private ObjectNode newNode(final long timeMillis, final double value) {
-    ObjectNode json = JsonUtils.newObjectNode();
-    json.put("m1", value);
-    json.put("d1", "DEFAULT");
-    json.put("mtime", timeMillis);
-    return json;
+  private List<OrderLine> next() {
+    List<OrderLine> orderLines = new ArrayList<>();
+    if (flip(0.8)) {
+      List<OrderLine> processed = new ArrayList<>();
+      while (!q.isEmpty()) {
+        OrderLine ol = q.poll();
+        if (flip(0.3)) {
+          final OrderLine transitioned = transition(ol);
+          if (transitioned != null) {
+            orderLines.add(transitioned);
+            processed.add(transitioned);
+          }
+        } else {
+          processed.add(ol);
+        }
+      }
+      q.addAll(processed);
+      return orderLines;
+    } else {
+      final int nextOrderNo = ++NEXT_ORDER_NO;
+      orderLines.add(newOrderLine(nextOrderNo, 1));
+      if (flip(0.5)) {
+        orderLines.add(newOrderLine(nextOrderNo, 2));
+        if (flip(0.5)) {
+          orderLines.add(newOrderLine(nextOrderNo, 3));
+          if (flip(0.5)) {
+            orderLines.add(newOrderLine(nextOrderNo, 4));
+          }
+        }
+      }
+      q.addAll(orderLines);
+      return orderLines;
+    }
+  }
+
+  private OrderLine transition(final OrderLine ol) {
+    final Status status = TRANSITION_MAP.get(ol.getStatus());
+    if (status == null) {
+      return null;
+    }
+    return ol
+        .setEpochMillis(System.currentTimeMillis())
+        .setStatus(status);
+  }
+
+  private boolean flip(final double v) {
+    return random.nextFloat() <= v;
+  }
+
+  private OrderLine newOrderLine(final int orderNo, final int orderLineNo) {
+    return new OrderLine()
+        .setEpochMillis(System.currentTimeMillis())
+        .setOrderNo(String.valueOf(orderNo))
+        .setOrderLineNo(String.valueOf(orderLineNo))
+        .setItemID(String.valueOf(orderLineNo))
+        .setOrderedQuantity(1)
+        .setStatus(Status.ORDERED)
+        .setTotal(100.0);
+  }
+
+  public enum Status {ORDERED, PROCESSING, SHIPPED, DELIVERED}
+
+  public static class OrderLine {
+
+    long epochMillis;
+    String orderNo;
+    String orderLineNo;
+    String itemID;
+    Status status;
+    Double total;
+    Integer orderedQuantity;
+
+    public long getEpochMillis() {
+      return epochMillis;
+    }
+
+    public OrderLine setEpochMillis(final long epochMillis) {
+      this.epochMillis = epochMillis;
+      return this;
+    }
+
+    public String getOrderNo() {
+      return orderNo;
+    }
+
+    public OrderLine setOrderNo(final String orderNo) {
+      this.orderNo = orderNo;
+      return this;
+    }
+
+    public String getOrderLineNo() {
+      return orderLineNo;
+    }
+
+    public OrderLine setOrderLineNo(final String orderLineNo) {
+      this.orderLineNo = orderLineNo;
+      return this;
+    }
+
+    public String getItemID() {
+      return itemID;
+    }
+
+    public OrderLine setItemID(final String itemID) {
+      this.itemID = itemID;
+      return this;
+    }
+
+    public Status getStatus() {
+      return status;
+    }
+
+    public OrderLine setStatus(final Status status) {
+      this.status = status;
+      return this;
+    }
+
+    public Double getTotal() {
+      return total;
+    }
+
+    public OrderLine setTotal(final Double total) {
+      this.total = total;
+      return this;
+    }
+
+    public Integer getOrderedQuantity() {
+      return orderedQuantity;
+    }
+
+    public OrderLine setOrderedQuantity(final Integer orderedQuantity) {
+      this.orderedQuantity = orderedQuantity;
+      return this;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      final OrderLine orderLine = (OrderLine) o;
+      return epochMillis == orderLine.epochMillis && Objects.equals(orderNo, orderLine.orderNo)
+          && Objects.equals(orderLineNo, orderLine.orderLineNo);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(epochMillis, orderNo, orderLineNo);
+    }
   }
 }
