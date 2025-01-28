@@ -19,7 +19,6 @@
 package org.apache.pinot.segment.local.segment.creator.impl.fwd;
 
 import com.yscope.clp.compressorfrontend.BuiltInVariableHandlingRuleVersions;
-import com.yscope.clp.compressorfrontend.EncodedMessage;
 import com.yscope.clp.compressorfrontend.MessageEncoder;
 import java.io.File;
 import java.io.IOException;
@@ -65,8 +64,7 @@ public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
   private final File _intermediateFilesDir;
   private final FileChannel _dataFile;
   private final ByteBuffer _fileBuffer;
-  private final EncodedMessage _clpEncodedMessage;
-  private final MessageEncoder _clpMessageEncoder;
+  private final PinotClpEncodedMessage _clpEncodedMessage;
   private final PinotClpEncoder _clpEncoder;
   private final StringColumnPreIndexStatsCollector.CLPStats _clpStats;
   private final SegmentDictionaryCreator _logTypeDictCreator;
@@ -126,10 +124,10 @@ public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
             VarByteChunkForwardIndexWriterV4.VERSION);
     _clpStats.clear();
 
-    _clpEncodedMessage = new EncodedMessage();
-    _clpMessageEncoder = new MessageEncoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
+    _clpEncodedMessage = new PinotClpEncodedMessage();
+    MessageEncoder clpMessageEncoder = new MessageEncoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
         BuiltInVariableHandlingRuleVersions.VariableEncodingMethodsV1);
-    _clpEncoder = new PinotClpEncoder(_clpMessageEncoder);
+    _clpEncoder = new PinotClpEncoder(clpMessageEncoder);
   }
 
   @Override
@@ -156,13 +154,13 @@ public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
   public void putString(String value) {
     String logtype;
     String[] dictVars;
-    Long[] encodedVars;
+    long[] encodedVars;
 
     try {
-      _clpMessageEncoder.encodeMessage(value, _clpEncodedMessage);
-      logtype = _clpEncodedMessage.getLogTypeAsString();
-      dictVars = _clpEncodedMessage.getDictionaryVarsAsStrings();
-      encodedVars = _clpEncodedMessage.getEncodedVarsAsBoxedLongs();
+      _clpEncoder.encodeMessage(value, _clpEncodedMessage);
+      logtype = _clpEncodedMessage.getLogType();
+      dictVars = _clpEncodedMessage.getDictionaryVars();
+      encodedVars = _clpEncodedMessage.getEncodedVars();
     } catch (IOException e) {
       throw new IllegalArgumentException("Failed to encode message: " + value, e);
     }
@@ -176,24 +174,19 @@ public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
     }
 
     if (encodedVars == null) {
-      encodedVars = new Long[]{FieldSpec.DEFAULT_DIMENSION_NULL_VALUE_OF_LONG};
+      encodedVars = new long[]{FieldSpec.DEFAULT_DIMENSION_NULL_VALUE_OF_LONG};
     }
 
     addCLPFields(logtype, dictVars, encodedVars);
   }
 
-  private void addCLPFields(String logtype, String[] dictVars, Long[] encodedVars) {
+  private void addCLPFields(String logtype, String[] dictVars, long[] encodedVars) {
     int logTypeDictId = _logTypeDictCreator.indexOfSV(logtype);
     int[] dictVarDictIds = _dictVarsDictCreator.indexOfMV(dictVars);
 
     _logTypeFwdIndexWriter.putDictId(logTypeDictId);
     _dictVarsFwdIndexWriter.putDictIds(dictVarDictIds);
-
-    long[] encodedVarsUnboxed = new long[encodedVars.length];
-    for (int i = 0; i < encodedVars.length; i++) {
-      encodedVarsUnboxed[i] = encodedVars[i];
-    }
-    _encodedVarsFwdIndexWriter.putLongMV(encodedVarsUnboxed);
+    _encodedVarsFwdIndexWriter.putLongMV(encodedVars);
   }
 
   @Override
