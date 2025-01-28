@@ -59,6 +59,7 @@ import org.apache.pinot.spi.data.FieldSpec;
 
 public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
   public static final byte[] MAGIC_BYTES = "CLP.v1".getBytes(StandardCharsets.UTF_8);
+
   private final String _column;
   private final int _numDocs;
   private final File _intermediateFilesDir;
@@ -66,6 +67,7 @@ public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
   private final ByteBuffer _fileBuffer;
   private final EncodedMessage _clpEncodedMessage;
   private final MessageEncoder _clpMessageEncoder;
+  private final PinotClpEncoder _clpEncoder;
   private final StringColumnPreIndexStatsCollector.CLPStats _clpStats;
   private final SegmentDictionaryCreator _logTypeDictCreator;
   private final SegmentDictionaryCreator _dictVarsDictCreator;
@@ -127,6 +129,7 @@ public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
     _clpEncodedMessage = new EncodedMessage();
     _clpMessageEncoder = new MessageEncoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
         BuiltInVariableHandlingRuleVersions.VariableEncodingMethodsV1);
+    _clpEncoder = new PinotClpEncoder(_clpMessageEncoder);
   }
 
   @Override
