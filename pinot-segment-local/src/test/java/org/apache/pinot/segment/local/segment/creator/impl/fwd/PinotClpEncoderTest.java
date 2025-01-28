@@ -1,7 +1,6 @@
 package org.apache.pinot.segment.local.segment.creator.impl.fwd;
 
 import com.yscope.clp.compressorfrontend.BuiltInVariableHandlingRuleVersions;
-import com.yscope.clp.compressorfrontend.EncodedMessage;
 import com.yscope.clp.compressorfrontend.MessageDecoder;
 import com.yscope.clp.compressorfrontend.MessageEncoder;
 import java.io.IOException;
@@ -28,10 +27,10 @@ public class PinotClpEncoderTest {
   @Test
   public void testEncodeDecode1()
       throws IOException {
-    EncodedMessage encodedMessage = new EncodedMessage();
+    PinotClpEncodedMessage encodedMessage = new PinotClpEncodedMessage();
     _clpEncoder.encodeMessage(LOG_LINE_1, encodedMessage);
     String decodedMessage =
-        _clpDecoder.decodeMessage(encodedMessage.getLogTypeAsString(), encodedMessage.getDictionaryVarsAsStrings(),
+        _clpDecoder.decodeMessage(encodedMessage.getLogType(), encodedMessage.getDictionaryVars(),
             encodedMessage.getEncodedVars());
 
      Assert.assertEquals(decodedMessage, LOG_LINE_1);

@@ -3,29 +3,70 @@ package org.apache.pinot.segment.local.segment.creator.impl.fwd;
 import com.yscope.clp.compressorfrontend.EncodedMessage;
 import com.yscope.clp.compressorfrontend.MessageEncoder;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import javax.annotation.concurrent.NotThreadSafe;
 
 
+@NotThreadSafe
 public class PinotClpEncoder {
-  public static final String LOG_TEMPLATE =
-      "\u0012 - - [\u0012] \"\u0012 \u0012 HTTP/\u0012\" \u0012 \u0012 \"\u0012\" \"\u0012\" \"-\"";
-  private static final char VAR_LONG = '\u0011'; // DC1
-  private static final char VAR_STRING = '\u0012'; // DC2
-  private static final char VAR_FLOAT = '\u0013'; // DC3
-  private static final char[] PLACEHOLDERS = {VAR_LONG, VAR_STRING, VAR_FLOAT};
-  private static final String LOG_TEMPLATE_REGEX = templateToRegex(LOG_TEMPLATE, PLACEHOLDERS);
+  private static final char PLACEHOLDER_LONG = '\u0011'; // DC1
+  private static final char PLACEHOLDER_STRING = '\u0012'; // DC2
+  private static final char PLACEHOLDER_FLOAT = '\u0013'; // DC3
+  private static final char[] PLACEHOLDERS = {PLACEHOLDER_LONG, PLACEHOLDER_STRING, PLACEHOLDER_FLOAT};
 
+  private final Map<String, Pattern> _templatePatterns;
   private final MessageEncoder _clpMessageEncoder;
 
+  private final EncodedMessage _reusableEncodedMessage = new EncodedMessage();
+
   public PinotClpEncoder(MessageEncoder clpMessageEncoder) {
+    final List<String> predefinedTemplates = Arrays.asList(
+        // Apache/Nginx access log template
+        "\u0012 - - [\u0012] \"\u0012 \u0012 HTTP/\u0012\" \u0012 \u0012 \"\u0012\" \"\u0012\" \"-\""
+    );
     _clpMessageEncoder = clpMessageEncoder;
+    _templatePatterns = buildTemplatePatterns(predefinedTemplates);
   }
 
-  public static String templateToRegex(String template, char[] placeholders) {
+  private static Map<String, Pattern> buildTemplatePatterns(List<String> templates) {
+    return templates.stream()
+        .collect(Collectors.toMap(
+            template -> template,
+            template -> Pattern.compile(templateToRegex(template, PLACEHOLDERS)),
+            (v1, v2) -> v1,  // Keep first value in case of duplicates
+            LinkedHashMap::new  // Preserve order
+        ));
+  }
+
+  public boolean encodeMessageWithTemplate(String message, PinotClpEncodedMessage encodedMessage) {
+    for (Map.Entry<String, Pattern> entry : _templatePatterns.entrySet()) {
+      Matcher matcher = entry.getValue().matcher(message);
+      if (matcher.matches()) {
+        String template = entry.getKey();
+        encodedMessage.setLogType(template);
+        
+        String[] dictionaryVars = new String[matcher.groupCount()];
+        for (int j = 1; j <= matcher.groupCount(); j++) {
+          dictionaryVars[j - 1] = matcher.group(j);
+        }
+        encodedMessage.setDictionaryVars(dictionaryVars);
+        
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Existing helper methods remain unchanged
+  private static String templateToRegex(String template, char[] placeholders) {
     String[] parts = template.split(placeholdersRegex(placeholders));
 
-    // If no parts exist at all, handle that edge case
     if (parts.length == 0) {
       return Pattern.quote(template);
     }
@@ -52,35 +93,14 @@ public class PinotClpEncoder {
     return placeholderRegex.toString();
   }
 
-  private static boolean isPlaceholder(char c, char[] placeholders) {
-    for (char placeholder : placeholders) {
-      if (c == placeholder) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public void encodeMessage(String message, EncodedMessage encodedMessage)
-      throws IOException {
-    _clpMessageEncoder.encodeMessage(message, encodedMessage);
-  }
-
-  public boolean encodeMessageWithTemplate(String message, PinotClpEncodedMessage encodedMessage) {
-    Pattern pattern = Pattern.compile(LOG_TEMPLATE_REGEX);
-    Matcher matcher = pattern.matcher(message);
-
-    if (!matcher.matches()) {
-      return false;
+  public void encodeMessage(String message, PinotClpEncodedMessage encodedMessage) throws IOException {
+    if (encodeMessageWithTemplate(message, encodedMessage)) {
+      return;
     }
 
-    encodedMessage.setLogType(LOG_TEMPLATE);
-    String[] dictionaryVars = new String[matcher.groupCount()];
-    for (int i = 1; i <= matcher.groupCount(); i++) {
-      dictionaryVars[i - 1] = matcher.group(i);
-    }
-    encodedMessage.setDictionaryVars(dictionaryVars);
-
-    return true;
+    _clpMessageEncoder.encodeMessage(message, _reusableEncodedMessage);
+    encodedMessage.setLogType(_reusableEncodedMessage.getLogTypeAsString());
+    encodedMessage.setDictionaryVars(_reusableEncodedMessage.getDictionaryVarsAsStrings());
+    encodedMessage.setEncodedVars(_reusableEncodedMessage.getEncodedVars());
   }
 }
