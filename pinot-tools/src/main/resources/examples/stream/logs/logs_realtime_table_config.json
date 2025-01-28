@@ -1,0 +1,39 @@
+{
+  "tableName": "logs",
+  "tableType": "REALTIME",
+  "segmentsConfig": {
+    "timeColumnName": "ts",
+    "schemaName": "logs",
+    "replicasPerPartition": "1"
+  },
+  "tenants": {},
+  "tableIndexConfig": {
+    "loadMode": "MMAP",
+    "streamConfigs": {
+      "streamType": "kafka",
+      "stream.kafka.consumer.type": "lowlevel",
+      "stream.kafka.topic.name": "logs",
+      "stream.kafka.decoder.class.name": "org.apache.pinot.plugin.stream.kafka.KafkaJSONMessageDecoder",
+      "stream.kafka.consumer.factory.class.name": "org.apache.pinot.plugin.stream.kafka20.KafkaConsumerFactory",
+      "stream.kafka.zk.broker.url": "localhost:2191/kafka",
+      "stream.kafka.broker.list": "localhost:19092",
+      "realtime.segment.flush.threshold.rows": "0",
+      "realtime.segment.flush.threshold.time": "87600h",
+      "realtime.segment.flush.threshold.segment.size": "1G",
+      "stream.kafka.consumer.prop.auto.offset.reset": "smallest"
+    }
+  },
+  "metadata": {
+    "customConfigs": {}
+  },
+  "fieldConfigList": [
+    {
+      "name": "logLine",
+      "encodingType": "RAW",
+      "indexTypes": [ ],
+      "compressionCodec": "CLPV2",
+      "indexes": null,
+      "tierOverwrites": null
+    }
+  ]
+}

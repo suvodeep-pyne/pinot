@@ -1,0 +1,17 @@
+{
+  "schemaName": "logs",
+  "dimensionFieldSpecs": [
+    {
+      "name": "logLine",
+      "dataType": "STRING"
+    }
+  ],
+  "dateTimeFieldSpecs": [
+    {
+      "name": "ts",
+      "dataType": "LONG",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    }
+  ]
+}
