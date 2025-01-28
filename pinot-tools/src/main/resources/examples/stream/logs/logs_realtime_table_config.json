@@ -33,7 +33,10 @@
       "indexTypes": [ ],
       "compressionCodec": "CLPV2",
       "indexes": null,
-      "tierOverwrites": null
+      "tierOverwrites": null,
+      "properties": {
+        "rawIndexWriterVersion": "5"
+      }
     }
   ]
 }

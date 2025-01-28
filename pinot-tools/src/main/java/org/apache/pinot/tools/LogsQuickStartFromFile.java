@@ -53,7 +53,7 @@ public class LogsQuickStartFromFile extends Quickstart {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Logger LOG = LoggerFactory.getLogger(LogsQuickStartFromFile.class);
 
-  private final String _logFilePath = "/Users/spyne/Downloads/archive/access.log";
+  private final String _logFilePath = "/Users/spyne/Downloads/logs-dataset/webaccesslog/access.log";
   private final AtomicLong _messageCounter = new AtomicLong(0);
 
   public LogsQuickStartFromFile() {
