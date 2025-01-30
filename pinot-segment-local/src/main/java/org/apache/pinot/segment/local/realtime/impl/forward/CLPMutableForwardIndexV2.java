@@ -28,8 +28,9 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import javax.validation.constraints.NotNull;
 import org.apache.pinot.segment.local.realtime.impl.dictionary.BytesOffHeapMutableDictionary;
+import org.apache.pinot.segment.local.segment.creator.impl.fwd.PinotClpEncodedMessage;
+import org.apache.pinot.segment.local.segment.creator.impl.fwd.PinotClpEncoder;
 import org.apache.pinot.segment.local.segment.creator.impl.stats.CLPStatsProvider;
 import org.apache.pinot.segment.spi.index.mutable.MutableForwardIndex;
 import org.apache.pinot.segment.spi.memory.PinotDataBufferMemoryManager;
@@ -105,9 +106,9 @@ import org.slf4j.LoggerFactory;
 public class CLPMutableForwardIndexV2 implements MutableForwardIndex {
   protected static final Logger LOGGER = LoggerFactory.getLogger(CLPMutableForwardIndexV2.class);
   public final String _columnName;
-  protected final EncodedMessage _clpEncodedMessage;
-  protected final EncodedMessage _failToEncodeClpEncodedMessage;
-  protected final MessageEncoder _clpMessageEncoder;
+  protected final PinotClpEncodedMessage _clpEncodedMessage;
+  protected final PinotClpEncodedMessage _failToEncodeClpEncodedMessage;
+  protected final PinotClpEncoder _clpMessageEncoder;
   protected final MessageDecoder _clpMessageDecoder;
 
   protected int _nextDocId = 0;
@@ -159,13 +160,15 @@ public class CLPMutableForwardIndexV2 implements MutableForwardIndex {
     _columnName = columnName;
 
     // Initialize clp-ffi datastructures
-    _clpEncodedMessage = new EncodedMessage();
-    _clpMessageEncoder = new MessageEncoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
+    _clpEncodedMessage = new PinotClpEncodedMessage();
+    MessageEncoder messageEncoder = new MessageEncoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
         BuiltInVariableHandlingRuleVersions.VariableEncodingMethodsV1);
+    _clpMessageEncoder = new PinotClpEncoder(messageEncoder);
+
     _clpMessageDecoder = new MessageDecoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
         BuiltInVariableHandlingRuleVersions.VariableEncodingMethodsV1);
 
-    _failToEncodeClpEncodedMessage = new EncodedMessage();
+    _failToEncodeClpEncodedMessage = new PinotClpEncodedMessage();
     try {
       _clpMessageEncoder.encodeMessage("Failed to encode message", _failToEncodeClpEncodedMessage);
     } catch (IOException ex) {
@@ -218,14 +221,14 @@ public class CLPMutableForwardIndexV2 implements MutableForwardIndex {
   @Override
   public void setString(int docId, String value) {
     // docId is intentionally ignored because this forward index only supports sequential writes (append only)
-    EncodedMessage encodedMessage = _clpEncodedMessage;
+    PinotClpEncodedMessage encodedMessage = _clpEncodedMessage;
     try {
       _clpMessageEncoder.encodeMessage(value, encodedMessage);
     } catch (IOException e) {
       // Encode a fail-to-encode message if CLP encoding fails
       encodedMessage = _failToEncodeClpEncodedMessage;
     } finally {
-      appendEncodedMessage(encodedMessage);
+      appendEncodedMessage(encodedMessage, value);
     }
   }
 
@@ -237,19 +240,21 @@ public class CLPMutableForwardIndexV2 implements MutableForwardIndex {
    * encoded message by replacing them with empty arrays, as Pinot does not accept null values.
    *
    * @param clpEncodedMessage The {@link EncodedMessage} to append.
+   * @param logMessage The original log message string.
    */
-  public void appendEncodedMessage(@NotNull EncodedMessage clpEncodedMessage) {
+  public void appendEncodedMessage(PinotClpEncodedMessage clpEncodedMessage, String logMessage) {
+    byte[] logMessageBytes = logMessage.getBytes(StandardCharsets.UTF_8);
     if (_isClpEncoded || _forceEnableClpEncoding) {
-      _logtypeId.setInt(_nextDocId, _logtypeDict.index(clpEncodedMessage.getLogtype()));
+      _logtypeId.setInt(_nextDocId, _logtypeDict.index(clpEncodedMessage.getLogType().getBytes(StandardCharsets.UTF_8)));
 
-      FlattenedByteArray flattenedDictVars = clpEncodedMessage.getDictionaryVarsAsFlattenedByteArray();
-      if (null == flattenedDictVars || 0 == flattenedDictVars.size()) {
+      String[] dictionaryVars = clpEncodedMessage.getDictionaryVars();
+      if (null == dictionaryVars || 0 == dictionaryVars.length) {
         _numDocsWithNoDictVar++;
       } else {
-        for (byte[] dictVar : flattenedDictVars) {
-          _dictVarId.setInt(_nextDictVarDocId++, _dictVarDict.index(dictVar));
+        for (String dictVar : dictionaryVars) {
+          _dictVarId.setInt(_nextDictVarDocId++, _dictVarDict.index(dictVar.getBytes(StandardCharsets.ISO_8859_1)));
         }
-        _maxNumDictVarIdPerDoc = Math.max(_maxNumDictVarIdPerDoc, flattenedDictVars.size());
+        _maxNumDictVarIdPerDoc = Math.max(_maxNumDictVarIdPerDoc, dictionaryVars.length);
       }
       _dictVarOffset.setInt(_nextDocId, _nextDictVarDocId);
 
@@ -280,13 +285,13 @@ public class CLPMutableForwardIndexV2 implements MutableForwardIndex {
         }
       }
     } else {
-      _rawBytes.setBytes(_nextDocId - _bytesRawFwdIndexDocIdStartOffset, clpEncodedMessage.getMessage());
+      _rawBytes.setBytes(_nextDocId - _bytesRawFwdIndexDocIdStartOffset, logMessageBytes);
     }
     _nextDocId++;
 
     // Update mutable index statistics for compatibility purposes only
-    _lengthOfLongestElement = Math.max(_lengthOfLongestElement, clpEncodedMessage.getMessage().length);
-    _lengthOfShortestElement = Math.min(_lengthOfShortestElement, clpEncodedMessage.getMessage().length);
+    _lengthOfLongestElement = Math.max(_lengthOfLongestElement, logMessageBytes.length);
+    _lengthOfShortestElement = Math.min(_lengthOfShortestElement, logMessageBytes.length);
   }
 
   public int getNumDoc() {

@@ -19,11 +19,12 @@
 package org.apache.pinot.segment.local.realtime.impl.forward;
 
 import com.yscope.clp.compressorfrontend.BuiltInVariableHandlingRuleVersions;
-import com.yscope.clp.compressorfrontend.EncodedMessage;
 import com.yscope.clp.compressorfrontend.MessageDecoder;
 import com.yscope.clp.compressorfrontend.MessageEncoder;
 import java.io.IOException;
 import org.apache.pinot.segment.local.realtime.impl.dictionary.StringOffHeapMutableDictionary;
+import org.apache.pinot.segment.local.segment.creator.impl.fwd.PinotClpEncodedMessage;
+import org.apache.pinot.segment.local.segment.creator.impl.fwd.PinotClpEncoder;
 import org.apache.pinot.segment.local.segment.creator.impl.stats.CLPStatsProvider;
 import org.apache.pinot.segment.local.segment.creator.impl.stats.StringColumnPreIndexStatsCollector;
 import org.apache.pinot.segment.local.segment.index.forward.ForwardIndexType;
@@ -40,8 +41,8 @@ public class CLPMutableForwardIndex implements MutableForwardIndex {
   private static final int ESTIMATED_LOG_TYPE_LENGTH = 200;
   private static final int ESTIMATED_DICT_VARS_LENGTH = 50;
   private FieldSpec.DataType _storedType;
-  private final EncodedMessage _clpEncodedMessage;
-  private final MessageEncoder _clpMessageEncoder;
+  private final PinotClpEncodedMessage _clpEncodedMessage;
+  private final PinotClpEncoder _clpMessageEncoder;
   private final MessageDecoder _clpMessageDecoder;
   private final MutableDictionary _logTypeDictCreator;
   private final MutableDictionary _dictVarsDictCreator;
@@ -58,9 +59,10 @@ public class CLPMutableForwardIndex implements MutableForwardIndex {
 
   public CLPMutableForwardIndex(String columnName, FieldSpec.DataType storedType,
       PinotDataBufferMemoryManager memoryManager, int capacity) {
-    _clpEncodedMessage = new EncodedMessage();
-    _clpMessageEncoder = new MessageEncoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
+    _clpEncodedMessage = new PinotClpEncodedMessage();
+    MessageEncoder messageEncoder = new MessageEncoder(BuiltInVariableHandlingRuleVersions.VariablesSchemaV2,
         BuiltInVariableHandlingRuleVersions.VariableEncodingMethodsV1);
+    _clpMessageEncoder = new PinotClpEncoder(messageEncoder);
     _logTypeDictCreator =
         new StringOffHeapMutableDictionary(ESTIMATED_LOG_TYPE_CARDINALITY, ESTIMATED_LOG_TYPE_CARDINALITY / 10,
             memoryManager, columnName + "_logType.dict", ESTIMATED_LOG_TYPE_LENGTH);
@@ -110,16 +112,16 @@ public class CLPMutableForwardIndex implements MutableForwardIndex {
   public void setString(int docId, String value) {
     String logtype;
     String[] dictVars;
-    Long[] encodedVars;
+    long[] encodedVars;
 
     _lengthOfLongestElement = Math.max(_lengthOfLongestElement, value.length());
     _lengthOfShortestElement = Math.min(_lengthOfShortestElement, value.length());
 
     try {
       _clpMessageEncoder.encodeMessage(value, _clpEncodedMessage);
-      logtype = _clpEncodedMessage.getLogTypeAsString();
-      dictVars = _clpEncodedMessage.getDictionaryVarsAsStrings();
-      encodedVars = _clpEncodedMessage.getEncodedVarsAsBoxedLongs();
+      logtype = _clpEncodedMessage.getLogType();
+      dictVars = _clpEncodedMessage.getDictionaryVars();
+      encodedVars = _clpEncodedMessage.getEncodedVars();
     } catch (IOException e) {
       throw new IllegalArgumentException("Failed to encode message: " + value, e);
     }
