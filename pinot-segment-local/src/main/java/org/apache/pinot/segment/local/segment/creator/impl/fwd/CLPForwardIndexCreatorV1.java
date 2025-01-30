@@ -169,11 +169,11 @@ public class CLPForwardIndexCreatorV1 implements ForwardIndexCreator {
       logtype = FieldSpec.DEFAULT_DIMENSION_NULL_VALUE_OF_STRING;
     }
 
-    if (dictVars == null) {
+    if (dictVars == null || dictVars.length == 0) {
       dictVars = new String[]{FieldSpec.DEFAULT_DIMENSION_NULL_VALUE_OF_STRING};
     }
 
-    if (encodedVars == null) {
+    if (encodedVars == null || encodedVars.length == 0) {
       encodedVars = new long[]{FieldSpec.DEFAULT_DIMENSION_NULL_VALUE_OF_LONG};
     }
 
