@@ -23,6 +23,7 @@ public class PinotClpEncoder {
   private static final char PLACEHOLDER_STRING = '\u0012'; // DC2
   private static final char PLACEHOLDER_FLOAT = '\u0013'; // DC3
   private static final char[] PLACEHOLDERS = {PLACEHOLDER_LONG, PLACEHOLDER_STRING, PLACEHOLDER_FLOAT};
+  private static final long[] DUMMY_ENCODED_VARS = new long[]{Long.MIN_VALUE};
 
   private final Map<String, Pattern> _templatePatterns;
   private final MessageEncoder _clpMessageEncoder;
@@ -77,7 +78,7 @@ public class PinotClpEncoder {
       placeholderRegex.append("\\u");
       placeholderRegex.append(String.format("%04x", (int) ch));
     }
-    placeholderRegex.append("]+");
+    placeholderRegex.append("]");
     return placeholderRegex.toString();
   }
 
@@ -87,23 +88,13 @@ public class PinotClpEncoder {
       Matcher matcher = entry.getValue().matcher(message);
       if (matcher.matches()) {
         String template = entry.getKey();
-        encodedMessage.setLogType(template);
 
         String[] dictionaryVars = new String[matcher.groupCount()];
         for (int j = 1; j <= matcher.groupCount(); j++) {
           dictionaryVars[j - 1] = matcher.group(j);
         }
-        encodedMessage.setDictionaryVars(dictionaryVars);
-        try {
-          String decodedMessage =
-              _clpMessageDecoder.decodeMessage(template, dictionaryVars, encodedMessage.getEncodedVars());
-          if (!decodedMessage.equals(message)) {
-            throw new IllegalStateException("Decoded message does not match original message");
-          }
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
 
+        encodedMessage.setLogType(template).setDictionaryVars(dictionaryVars).setEncodedVars(DUMMY_ENCODED_VARS);
         _nPredefined.incrementAndGet();
         return true;
       }
@@ -117,14 +108,35 @@ public class PinotClpEncoder {
     if (encodeMessageWithTemplate(message, encodedMessage)) {
       return;
     }
+    encodeWithClp(message, encodedMessage);
 
+    try {
+      String decodedMessage =
+          _clpMessageDecoder.decodeMessage(encodedMessage.getLogType(), encodedMessage.getDictionaryVars(),
+              encodedMessage.getEncodedVars());
+      if (!decodedMessage.equals(message)) {
+        throw new IllegalStateException("Decoded message does not match original message");
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private void encodeWithClp(String message, PinotClpEncodedMessage encodedMessage)
+      throws IOException {
     _clpMessageEncoder.encodeMessage(message, _reusableEncodedMessage);
     encodedMessage.setLogType(_reusableEncodedMessage.getLogTypeAsString());
     encodedMessage.setDictionaryVars(_reusableEncodedMessage.getDictionaryVarsAsStrings());
-    encodedMessage.setEncodedVars(_reusableEncodedMessage.getEncodedVars());
+    Long[] encodedVars = _reusableEncodedMessage.getEncodedVarsAsBoxedLongs();
+    encodedMessage.setEncodedVars(
+        encodedVars != null ? Arrays.stream(encodedVars).mapToLong(Long::longValue).toArray() : DUMMY_ENCODED_VARS);
   }
 
-  public AtomicInteger getnPredefined() {
-    return _nPredefined;
+  public int getPredefinedCount() {
+    return _nPredefined.get();
+  }
+
+  public int getTotalCount() {
+    return _nTotal.get();
   }
 }
