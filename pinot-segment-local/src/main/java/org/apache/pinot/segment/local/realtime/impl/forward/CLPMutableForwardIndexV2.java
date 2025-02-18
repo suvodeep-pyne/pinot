@@ -153,7 +153,7 @@ public class CLPMutableForwardIndexV2 implements MutableForwardIndex {
   // Dynamic CLP dictionary encoding configs
   protected int _minNumDocsBeforeCardinalityMonitoring = _estimatedMaxDocCount / 8;
   protected boolean _forceEnableClpEncoding = false;
-  protected int _inverseLogtypeCardinalityRatioStopThreshold = 10;
+  protected int _inverseLogtypeCardinalityRatioStopThreshold = 0;
   protected int _inverseDictVarCardinalityRatioStopThreshold = 10;
 
   public CLPMutableForwardIndexV2(String columnName, PinotDataBufferMemoryManager memoryManager) {

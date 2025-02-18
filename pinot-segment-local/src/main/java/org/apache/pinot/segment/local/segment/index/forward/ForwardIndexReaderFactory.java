@@ -99,7 +99,7 @@ public class ForwardIndexReaderFactory extends IndexReaderFactory.Default<Forwar
       }
       if (dataBuffer.size() >= CLPForwardIndexCreatorV2.MAGIC_BYTES.length) {
         byte[] magicBytes = new byte[CLPForwardIndexCreatorV2.MAGIC_BYTES.length];
-        dataBuffer.copyTo(0, magicBytes);
+        dataBuffer.copyTo(Integer.BYTES, magicBytes);
         if (Arrays.equals(magicBytes, CLPForwardIndexCreatorV2.MAGIC_BYTES)) {
           return new CLPForwardIndexReaderV2(dataBuffer, metadata.getTotalDocs());
         }

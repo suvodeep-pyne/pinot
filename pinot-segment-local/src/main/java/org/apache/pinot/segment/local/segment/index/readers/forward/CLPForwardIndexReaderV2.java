@@ -24,9 +24,11 @@ import com.yscope.clp.compressorfrontend.MessageDecoder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import javax.annotation.Nullable;
 import org.apache.pinot.segment.local.io.util.PinotDataBitSet;
 import org.apache.pinot.segment.local.io.util.VarLengthValueReader;
 import org.apache.pinot.segment.local.segment.creator.impl.fwd.CLPForwardIndexCreatorV2;
+import org.apache.pinot.segment.spi.compression.ChunkCompressionType;
 import org.apache.pinot.segment.spi.index.reader.ForwardIndexReader;
 import org.apache.pinot.segment.spi.index.reader.ForwardIndexReaderContext;
 import org.apache.pinot.segment.spi.memory.PinotDataBuffer;
@@ -147,6 +149,12 @@ public class CLPForwardIndexReaderV2 implements ForwardIndexReader<CLPForwardInd
               FieldSpec.DataType.BYTES, false);
       offset += rawMsgFwdIndexLength;
     }
+  }
+
+  @Nullable
+  @Override
+  public ChunkCompressionType getCompressionType() {
+    return ChunkCompressionType.ZSTANDARD;
   }
 
   /**

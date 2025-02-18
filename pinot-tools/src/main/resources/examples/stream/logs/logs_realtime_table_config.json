@@ -31,9 +31,12 @@
       "name": "logLine",
       "encodingType": "RAW",
       "indexTypes": [ ],
-      "compressionCodec": "CLP",
+      "compressionCodec": "CLPV2",
       "indexes": null,
-      "tierOverwrites": null
+      "tierOverwrites": null,
+      "properties": {
+        "rawIndexWriterVersion": "5"
+      }
     }
   ]
 }
