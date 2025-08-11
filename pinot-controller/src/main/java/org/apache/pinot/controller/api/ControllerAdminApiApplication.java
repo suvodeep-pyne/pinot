@@ -33,6 +33,7 @@ import org.apache.pinot.common.swagger.SwaggerApiListingResource;
 import org.apache.pinot.common.swagger.SwaggerSetupUtils;
 import org.apache.pinot.controller.ControllerConf;
 import org.apache.pinot.controller.api.access.AuthenticationFilter;
+import org.apache.pinot.controller.audit.ControllerAuditFilter;
 import org.apache.pinot.core.api.ServiceAutoDiscoveryFeature;
 import org.apache.pinot.core.transport.ListenerConfig;
 import org.apache.pinot.core.util.ListenerConfigUtil;
@@ -81,6 +82,7 @@ public class ControllerAdminApiApplication extends ResourceConfig {
     register(SwaggerSerializers.class);
     register(new CorsFilter());
     register(AuthenticationFilter.class);
+    register(ControllerAuditFilter.class);
     // property("jersey.config.server.tracing.type", "ALL");
     // property("jersey.config.server.tracing.threshold", "VERBOSE");
   }
