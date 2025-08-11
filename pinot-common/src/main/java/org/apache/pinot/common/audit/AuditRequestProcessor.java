@@ -40,20 +40,12 @@ import org.slf4j.LoggerFactory;
  * Handles all the complex logic for IP address extraction, user identification,
  * and request payload capture for audit logging purposes.
  */
-public class JerseyRequestAuditor {
+public class AuditRequestProcessor {
 
-  private static final Logger LOG = LoggerFactory.getLogger(JerseyRequestAuditor.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AuditRequestProcessor.class);
   private static final String ANONYMOUS = "anonymous";
 
-  /**
-   * Performs audit logging for a Jersey HTTP request.
-   * Extracts all necessary information and logs the audit event.
-   *
-   * @param requestContext the Jersey request context
-   * @param httpHeaders the HTTP headers
-   * @param remoteAddr the remote address from the underlying request
-   */
-  public void audit(ContainerRequestContext requestContext, HttpHeaders httpHeaders, String remoteAddr) {
+  public AuditEvent processRequest(ContainerRequestContext requestContext, HttpHeaders httpHeaders, String remoteAddr) {
     try {
       UriInfo uriInfo = requestContext.getUriInfo();
 
@@ -66,11 +58,12 @@ public class JerseyRequestAuditor {
       Object requestPayload = captureRequestPayload(requestContext);
 
       // Log the audit event
-      AuditLogger.log("serviceId", endpoint, method, originIpAddress, userId, requestPayload);
+      return new AuditEvent("serviceId", endpoint, method, originIpAddress, userId, requestPayload);
     } catch (Exception e) {
       // Graceful degradation: Never let audit logging failures affect the main request
       LOG.warn("Failed to process audit logging for request", e);
     }
+    return null;
   }
 
   /**

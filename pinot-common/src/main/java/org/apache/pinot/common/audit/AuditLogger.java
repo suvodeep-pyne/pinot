@@ -60,22 +60,6 @@ public final class AuditLogger {
   }
 
   /**
-   * Creates and logs an audit event in one call for convenience.
-   *
-   * @param serviceId the service identifier (e.g., "Query Console")
-   * @param endpoint the API endpoint path
-   * @param method the HTTP method
-   * @param originIpAddress the client IP address
-   * @param userId the authenticated user identifier
-   * @param request the request payload object
-   */
-  public static void log(String serviceId, String endpoint, String method, String originIpAddress, String userId,
-      Object request) {
-    AuditEvent auditEvent = new AuditEvent(serviceId, endpoint, method, originIpAddress, userId, request);
-    log(auditEvent);
-  }
-
-  /**
    * Checks if audit logging is enabled (INFO level on audit.controller logger).
    * Can be used to avoid expensive request payload processing when audit logging is disabled.
    *

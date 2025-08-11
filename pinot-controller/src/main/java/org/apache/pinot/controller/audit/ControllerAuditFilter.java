@@ -25,8 +25,9 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
+import org.apache.pinot.common.audit.AuditEvent;
 import org.apache.pinot.common.audit.AuditLogger;
-import org.apache.pinot.common.audit.JerseyRequestAuditor;
+import org.apache.pinot.common.audit.AuditRequestProcessor;
 import org.glassfish.grizzly.http.server.Request;
 
 
@@ -37,7 +38,7 @@ import org.glassfish.grizzly.http.server.Request;
 @javax.ws.rs.ext.Provider
 public class ControllerAuditFilter implements ContainerRequestFilter {
 
-  private static final JerseyRequestAuditor AUDITOR = new JerseyRequestAuditor();
+  private static final AuditRequestProcessor AUDITOR = new AuditRequestProcessor();
 
   @Inject
   Provider<Request> _requestProvider;
@@ -57,6 +58,7 @@ public class ControllerAuditFilter implements ContainerRequestFilter {
     final Request grizzlyRequest = _requestProvider.get();
     final String remoteAddr = grizzlyRequest.getRemoteAddr();
 
-    AUDITOR.audit(requestContext, _httpHeaders, remoteAddr);
+    final AuditEvent auditEvent = AUDITOR.processRequest(requestContext, _httpHeaders, remoteAddr);
+    AuditLogger.log(auditEvent);
   }
 }
