@@ -63,7 +63,7 @@ public final class AuditLogger {
   }
 
   /**
-   * Checks if audit logging is enabled (INFO level on audit.controller logger).
+   * Checks if audit logging is enabled (INFO level on audit logger).
    * Can be used to avoid expensive request payload processing when audit logging is disabled.
    *
    * @return true if audit logging is enabled
