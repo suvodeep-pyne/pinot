@@ -29,8 +29,11 @@ import org.slf4j.LoggerFactory;
  */
 public final class AuditLogger {
 
-  private static final Logger AUDIT_LOGGER = LoggerFactory.getLogger("audit.controller");
-  private static final Logger ERROR_LOGGER = LoggerFactory.getLogger(AuditLogger.class);
+  // Logger for audit events - should be configured to log at INFO level
+  private static final Logger AUDIT_LOGGER = LoggerFactory.getLogger("audit");
+
+  // Default Pinot logger. For logging failures in audit logging itself
+  private static final Logger LOG = LoggerFactory.getLogger(AuditLogger.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private AuditLogger() {
@@ -54,7 +57,7 @@ public final class AuditLogger {
       AUDIT_LOGGER.info(jsonLog);
     } catch (Exception e) {
       // Graceful degradation: Never let audit logging failures affect the main request
-      ERROR_LOGGER.warn("Failed to write audit log entry for endpoint: {} method: {}", auditEvent.getEndpoint(),
+      LOG.warn("Failed to write audit log entry for endpoint: {} method: {}", auditEvent.getEndpoint(),
           auditEvent.getMethod(), e);
     }
   }
