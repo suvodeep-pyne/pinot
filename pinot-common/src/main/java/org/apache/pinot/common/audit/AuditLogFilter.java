@@ -29,20 +29,24 @@ import org.glassfish.grizzly.http.server.Request;
 
 
 /**
- * Jersey filter for audit logging of Controller API requests.
- * Delegates to JerseyRequestAuditor for all audit data extraction and logging.
+ * Jersey filter for audit logging of API requests.
+ * Supports dynamic configuration through injected AuditConfigManager.
  */
 @javax.ws.rs.ext.Provider
 public class AuditLogFilter implements ContainerRequestFilter {
 
-  // TODO spyne inject this
-  private static final AuditRequestProcessor AUDIT_REQUEST_PROCESSOR = new AuditRequestProcessor();
+  @Inject
+  private AuditRequestProcessor _auditRequestProcessor;
 
   @Inject
   Provider<Request> _requestProvider;
 
   @Context
   HttpHeaders _httpHeaders;
+
+  public AuditLogFilter(AuditConfigManager configManager) {
+    _auditRequestProcessor = new AuditRequestProcessor(configManager);
+  }
 
   @Override
   public void filter(ContainerRequestContext requestContext)
@@ -56,7 +60,9 @@ public class AuditLogFilter implements ContainerRequestFilter {
     final Request grizzlyRequest = _requestProvider.get();
     final String remoteAddr = grizzlyRequest.getRemoteAddr();
 
-    final AuditEvent auditEvent = AUDIT_REQUEST_PROCESSOR.processRequest(requestContext, _httpHeaders, remoteAddr);
-    AuditLogger.log(auditEvent);
+    final AuditEvent auditEvent = _auditRequestProcessor.processRequest(requestContext, _httpHeaders, remoteAddr);
+    if (auditEvent != null) {
+      AuditLogger.log(auditEvent);
+    }
   }
 }

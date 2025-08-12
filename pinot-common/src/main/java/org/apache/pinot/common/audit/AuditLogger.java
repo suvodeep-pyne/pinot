@@ -24,20 +24,35 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * Utility class for audit logging in Pinot Controller.
- * Uses SLF4J with structured JSON logging format as specified in Phase 1 audit logging requirements.
+ * Utility class for audit logging in Pinot components.
+ * Uses SLF4J with structured JSON logging format and supports dynamic configuration.
  */
 public final class AuditLogger {
 
-  // Logger for audit events - should be configured to log at INFO level
-  private static final Logger AUDIT_LOGGER = LoggerFactory.getLogger("audit");
-
   // Default Pinot logger. For logging failures in audit logging itself
   private static final Logger LOG = LoggerFactory.getLogger(AuditLogger.class);
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+  // Configuration manager for dynamic configuration support
+  private static volatile AuditConfigManager _configManager;
+
+  // Cache for current logger to avoid repeated LoggerFactory calls
+  private static volatile Logger _currentLogger;
 
   private AuditLogger() {
     // Utility class - prevent instantiation
+  }
+
+  /**
+   * Sets the configuration manager for dynamic audit configuration.
+   * This should be called during component startup.
+   * 
+   * @param configManager the audit configuration manager
+   */
+  public static void setConfigManager(AuditConfigManager configManager) {
+    _configManager = configManager;
+    updateCurrentLogger();
+    LOG.info("AuditLogger initialized with config manager");
   }
 
   /**
@@ -52,9 +67,15 @@ public final class AuditLogger {
       return;
     }
 
+    // Check if audit logging is enabled
+    if (!isEnabled()) {
+      return;
+    }
+
     try {
       String jsonLog = OBJECT_MAPPER.writeValueAsString(auditEvent);
-      AUDIT_LOGGER.info(jsonLog);
+      Logger currentLogger = getCurrentLogger();
+      currentLogger.info(jsonLog);
     } catch (Exception e) {
       // Graceful degradation: Never let audit logging failures affect the main request
       LOG.warn("Failed to write audit log entry for endpoint: {} method: {}", auditEvent.getEndpoint(),
@@ -63,12 +84,60 @@ public final class AuditLogger {
   }
 
   /**
-   * Checks if audit logging is enabled (INFO level on audit logger).
+   * Checks if audit logging is enabled.
+   * Considers both configuration settings and logger level.
    * Can be used to avoid expensive request payload processing when audit logging is disabled.
    *
    * @return true if audit logging is enabled
    */
   public static boolean isEnabled() {
-    return AUDIT_LOGGER.isInfoEnabled();
+    // If no config manager is set, fall back to logger check only (backward compatibility)
+    if (_configManager == null) {
+      Logger fallbackLogger = LoggerFactory.getLogger("audit");
+      return fallbackLogger.isInfoEnabled();
+    }
+
+    // Check configuration first
+    if (!_configManager.isEnabled()) {
+      return false;
+    }
+
+    // Also check that the logger is enabled at INFO level
+    Logger currentLogger = getCurrentLogger();
+    return currentLogger != null && currentLogger.isInfoEnabled();
+  }
+
+  /**
+   * Gets the current logger based on configuration.
+   * Updates the logger if the configuration has changed.
+   */
+  private static Logger getCurrentLogger() {
+    if (_configManager == null) {
+      // Fallback for backward compatibility
+      return LoggerFactory.getLogger("audit");
+    }
+
+    // Update logger if needed (configuration might have changed)
+    updateCurrentLogger();
+    return _currentLogger;
+  }
+
+  /**
+   * Updates the current logger based on the current configuration.
+   */
+  private static void updateCurrentLogger() {
+    if (_configManager == null) {
+      _currentLogger = LoggerFactory.getLogger("audit");
+      return;
+    }
+
+    AuditConfig config = _configManager.getCurrentConfig();
+    String loggerName = config.getLoggerName();
+    
+    // Only update if the logger name has changed
+    if (_currentLogger == null || !_currentLogger.getName().equals(loggerName)) {
+      _currentLogger = LoggerFactory.getLogger(loggerName);
+      LOG.debug("Updated audit logger to: {}", loggerName);
+    }
   }
 }
