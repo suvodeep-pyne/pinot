@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.controller.audit;
+package org.apache.pinot.common.audit;
 
 import java.io.IOException;
 import javax.inject.Inject;
@@ -25,9 +25,6 @@ import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
-import org.apache.pinot.common.audit.AuditEvent;
-import org.apache.pinot.common.audit.AuditLogger;
-import org.apache.pinot.common.audit.AuditRequestProcessor;
 import org.glassfish.grizzly.http.server.Request;
 
 
@@ -36,9 +33,10 @@ import org.glassfish.grizzly.http.server.Request;
  * Delegates to JerseyRequestAuditor for all audit data extraction and logging.
  */
 @javax.ws.rs.ext.Provider
-public class ControllerAuditFilter implements ContainerRequestFilter {
+public class AuditLogFilter implements ContainerRequestFilter {
 
-  private static final AuditRequestProcessor AUDITOR = new AuditRequestProcessor();
+  // TODO spyne inject this
+  private static final AuditRequestProcessor AUDIT_REQUEST_PROCESSOR = new AuditRequestProcessor();
 
   @Inject
   Provider<Request> _requestProvider;
@@ -58,7 +56,7 @@ public class ControllerAuditFilter implements ContainerRequestFilter {
     final Request grizzlyRequest = _requestProvider.get();
     final String remoteAddr = grizzlyRequest.getRemoteAddr();
 
-    final AuditEvent auditEvent = AUDITOR.processRequest(requestContext, _httpHeaders, remoteAddr);
+    final AuditEvent auditEvent = AUDIT_REQUEST_PROCESSOR.processRequest(requestContext, _httpHeaders, remoteAddr);
     AuditLogger.log(auditEvent);
   }
 }
