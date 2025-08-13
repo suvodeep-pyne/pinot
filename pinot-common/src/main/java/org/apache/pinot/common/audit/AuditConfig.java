@@ -30,80 +30,80 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public final class AuditConfig {
 
   @JsonProperty("enabled")
-  private boolean enabled = false;
+  private boolean _enabled = false;
 
-  @JsonProperty("captureRequestPayload")
-  private boolean captureRequestPayload = true;
+  @JsonProperty("capture.request.payload")
+  private boolean _captureRequestPayload = true;
 
-  @JsonProperty("captureRequestHeaders")
-  private boolean captureRequestHeaders = true;
+  @JsonProperty("capture.request.headers")
+  private boolean _captureRequestHeaders = true;
 
-  @JsonProperty("maxPayloadSize")
-  private int maxPayloadSize = 10240;
+  @JsonProperty("max.payload.size")
+  private int _maxPayloadSize = 10240;
 
-  @JsonProperty("loggerName")
-  private String loggerName = "audit";
+  @JsonProperty("logger.name")
+  private String _loggerName = "audit";
 
-  @JsonProperty("excludedEndpoints")
-  private String excludedEndpoints = "";
+  @JsonProperty("excluded.endpoints")
+  private String _excludedEndpoints = "";
 
   public AuditConfig() {
     // Default constructor for Jackson
   }
 
   public boolean isEnabled() {
-    return enabled;
+    return _enabled;
   }
 
   public void setEnabled(boolean enabled) {
-    this.enabled = enabled;
+    _enabled = enabled;
   }
 
   public boolean isCaptureRequestPayload() {
-    return captureRequestPayload;
+    return _captureRequestPayload;
   }
 
   public void setCaptureRequestPayload(boolean captureRequestPayload) {
-    this.captureRequestPayload = captureRequestPayload;
+    _captureRequestPayload = captureRequestPayload;
   }
 
   public boolean isCaptureRequestHeaders() {
-    return captureRequestHeaders;
+    return _captureRequestHeaders;
   }
 
   public void setCaptureRequestHeaders(boolean captureRequestHeaders) {
-    this.captureRequestHeaders = captureRequestHeaders;
+    _captureRequestHeaders = captureRequestHeaders;
   }
 
   public int getMaxPayloadSize() {
-    return maxPayloadSize;
+    return _maxPayloadSize;
   }
 
   public void setMaxPayloadSize(int maxPayloadSize) {
-    this.maxPayloadSize = maxPayloadSize;
+    _maxPayloadSize = maxPayloadSize;
   }
 
   public String getLoggerName() {
-    return loggerName;
+    return _loggerName;
   }
 
   public void setLoggerName(String loggerName) {
-    this.loggerName = loggerName;
+    _loggerName = loggerName;
   }
 
   public String getExcludedEndpoints() {
-    return excludedEndpoints;
+    return _excludedEndpoints;
   }
 
   public void setExcludedEndpoints(String excludedEndpoints) {
-    this.excludedEndpoints = excludedEndpoints;
+    _excludedEndpoints = excludedEndpoints;
   }
 
 
   @Override
   public String toString() {
-    return "AuditConfig{" + "enabled=" + enabled + ", captureRequestPayload=" + captureRequestPayload
-        + ", captureRequestHeaders=" + captureRequestHeaders + ", maxPayloadSize=" + maxPayloadSize + ", loggerName='"
-        + loggerName + '\'' + ", excludedEndpoints='" + excludedEndpoints + "'}";
+    return "AuditConfig{" + "enabled=" + _enabled + ", captureRequestPayload=" + _captureRequestPayload
+        + ", captureRequestHeaders=" + _captureRequestHeaders + ", maxPayloadSize=" + _maxPayloadSize + ", loggerName='"
+        + _loggerName + '\'' + ", excludedEndpoints='" + _excludedEndpoints + "'}";
   }
 }

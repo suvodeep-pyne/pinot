@@ -156,7 +156,7 @@ public class AuditRequestProcessor {
   /**
    * Extracts service ID from request headers.
    * Service ID should be provided by the client in headers, not from configuration.
-   * 
+   *
    * @param headers the HTTP headers
    * @return the service ID or "unknown" if not found
    */
@@ -190,7 +190,7 @@ public class AuditRequestProcessor {
   private Object captureRequestPayload(ContainerRequestContext requestContext) {
     // Get current configuration (fallback to defaults if no config manager)
     AuditConfig config = _configManager != null ? _configManager.getCurrentConfig() : new AuditConfig();
-    
+
     Map<String, Object> payload = new HashMap<>();
 
     try {

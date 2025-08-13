@@ -46,7 +46,7 @@ public final class AuditLogger {
   /**
    * Sets the configuration manager for dynamic audit configuration.
    * This should be called during component startup.
-   * 
+   *
    * @param configManager the audit configuration manager
    */
   public static void setConfigManager(AuditConfigManager configManager) {
@@ -133,7 +133,7 @@ public final class AuditLogger {
 
     AuditConfig config = _configManager.getCurrentConfig();
     String loggerName = config.getLoggerName();
-    
+
     // Only update if the logger name has changed
     if (_currentLogger == null || !_currentLogger.getName().equals(loggerName)) {
       _currentLogger = LoggerFactory.getLogger(loggerName);

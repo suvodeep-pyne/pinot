@@ -91,7 +91,6 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
 
   private AuditConfig buildConfigFromCluster(Map<String, String> clusterConfigs) {
     return mapPrefixedConfigToObject(clusterConfigs, "pinot.audit", AuditConfig.class);
-
   }
 
   /**
