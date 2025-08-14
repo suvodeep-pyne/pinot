@@ -19,6 +19,7 @@
 package org.apache.pinot.common.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -28,8 +29,6 @@ import org.apache.pinot.spi.config.provider.PinotClusterConfigChangeListener;
 import org.apache.pinot.spi.env.PinotConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.pinot.spi.utils.CommonConstants.Server.*;
 
 
 /**
@@ -41,9 +40,7 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
   private static final Logger LOG = LoggerFactory.getLogger(AuditConfigChangeListener.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  private static final Set<String> AUDIT_CONFIG_KEYS =
-      Set.of(CONFIG_OF_AUDIT_ENABLED, CONFIG_OF_AUDIT_CAPTURE_REQUEST_PAYLOAD, CONFIG_OF_AUDIT_EXCLUDED_ENDPOINTS,
-          CONFIG_OF_AUDIT_CAPTURE_REQUEST_HEADERS, CONFIG_OF_AUDIT_MAX_PAYLOAD_SIZE, CONFIG_OF_AUDIT_LOGGER_NAME);
+  public static final String AUDIT_CONFIG_PREFIX = "pinot.audit";
 
   private final AuditConfigManager _configManager;
 
@@ -51,46 +48,9 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
     _configManager = configManager;
   }
 
-  @Override
-  public void onChange(Set<String> changedConfigs, Map<String, String> clusterConfigs) {
-    if (!hasAuditConfigChanges(changedConfigs)) {
-      LOG.debug("ChangedConfigs: {} does not contain audit configs. Skipping updates", changedConfigs);
-      return;
-    }
-
-    LOG.info("Audit configuration changed. ChangedConfigs: {}", changedConfigs);
-
-    try {
-      updateAuditConfiguration(clusterConfigs);
-      LOG.info("Successfully updated audit configuration");
-    } catch (Exception e) {
-      LOG.error("Failed to update audit configuration", e);
-    }
-  }
-
-  private boolean hasAuditConfigChanges(Set<String> changedConfigs) {
-    return changedConfigs.stream().anyMatch(AUDIT_CONFIG_KEYS::contains);
-  }
-
-  private void updateAuditConfiguration(Map<String, String> clusterConfigs) {
-    // Validate the new configuration first
-    AuditConfigValidator.ValidationResult validationResult = AuditConfigValidator.validate(clusterConfigs);
-
-    if (!validationResult.isValid()) {
-      LOG.warn("Invalid audit configuration detected, keeping previous configuration: {}",
-          validationResult.getErrorMessage());
-      return;
-    }
-
-    // Build new configuration from cluster configs
-    AuditConfig newConfig = buildConfigFromCluster(clusterConfigs);
-
-    LOG.info("Updating audit configuration: {}", newConfig);
-    _configManager.updateConfiguration(newConfig);
-  }
-
-  private AuditConfig buildConfigFromCluster(Map<String, String> clusterConfigs) {
-    return mapPrefixedConfigToObject(clusterConfigs, "pinot.audit", AuditConfig.class);
+  @VisibleForTesting
+  static AuditConfig buildConfigFromCluster(Map<String, String> clusterConfigs) {
+    return mapPrefixedConfigToObject(clusterConfigs, AUDIT_CONFIG_PREFIX, AuditConfig.class);
   }
 
   /**
@@ -98,13 +58,11 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
    * Uses PinotConfiguration.subset() to extract properties with the given prefix and
    * Jackson's convertValue() for automatic object mapping.
    */
-  private static <T> T mapPrefixedConfigToObject(Map<String, String> clusterConfigs,
-                                                String prefix, Class<T> configClass) {
-    MapConfiguration mapConfig = new MapConfiguration(clusterConfigs);
-    PinotConfiguration pinotConfig = new PinotConfiguration(mapConfig);
-    PinotConfiguration subsetConfig = pinotConfig.subset(prefix);
-    Map<String, Object> configMap = subsetConfig.toMap();
-    return OBJECT_MAPPER.convertValue(configMap, configClass);
+  private static <T> T mapPrefixedConfigToObject(Map<String, String> clusterConfigs, String prefix,
+      Class<T> configClass) {
+    final MapConfiguration mapConfig = new MapConfiguration(clusterConfigs);
+    final PinotConfiguration subsetConfig = new PinotConfiguration(mapConfig).subset(prefix);
+    return OBJECT_MAPPER.convertValue(subsetConfig.toMap(), configClass);
   }
 
   /**
@@ -165,5 +123,43 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
       return endpoint.endsWith(suffix);
     }
     return false;
+  }
+
+  @Override
+  public void onChange(Set<String> changedConfigs, Map<String, String> clusterConfigs) {
+    if (!hasAuditConfigChanges(changedConfigs)) {
+      LOG.debug("ChangedConfigs: {} does not contain audit configs. Skipping updates", changedConfigs);
+      return;
+    }
+
+    LOG.info("Audit configuration changed. ChangedConfigs: {}", changedConfigs);
+
+    try {
+      updateAuditConfiguration(clusterConfigs);
+      LOG.info("Successfully updated audit configuration");
+    } catch (Exception e) {
+      LOG.error("Failed to update audit configuration", e);
+    }
+  }
+
+  private boolean hasAuditConfigChanges(Set<String> changedConfigs) {
+    return changedConfigs.stream().anyMatch(s -> s.startsWith(AUDIT_CONFIG_PREFIX + "."));
+  }
+
+  private void updateAuditConfiguration(Map<String, String> clusterConfigs) {
+    // Validate the new configuration first
+    AuditConfigValidator.ValidationResult validationResult = AuditConfigValidator.validate(clusterConfigs);
+
+    if (!validationResult.isValid()) {
+      LOG.warn("Invalid audit configuration detected, keeping previous configuration: {}",
+          validationResult.getErrorMessage());
+      return;
+    }
+
+    // Build new configuration from cluster configs
+    AuditConfig newConfig = buildConfigFromCluster(clusterConfigs);
+
+    LOG.info("Updating audit configuration: {}", newConfig);
+    _configManager.updateConfiguration(newConfig);
   }
 }

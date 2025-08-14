@@ -18,20 +18,15 @@
  */
 package org.apache.pinot.common.audit;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.commons.configuration2.MapConfiguration;
-import org.apache.pinot.spi.env.PinotConfiguration;
 import org.testng.annotations.Test;
 
-import static org.apache.pinot.spi.utils.CommonConstants.Server.*;
+import static org.apache.pinot.spi.utils.CommonConstants.AuditLog.*;
 import static org.testng.Assert.*;
 
 
 public class AuditConfigChangeListenerTest {
-
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   @Test
   public void testConfigurationKeyMappingComplete() {
@@ -216,15 +211,7 @@ public class AuditConfigChangeListenerTest {
     }
   }
 
-  /**
-   * Helper method that mirrors the private method in AuditConfigChangeListener
-   * for testing the configuration mapping logic directly
-   */
   private AuditConfig buildConfigFromCluster(Map<String, String> clusterConfigs) {
-    MapConfiguration mapConfig = new MapConfiguration(clusterConfigs);
-    PinotConfiguration pinotConfig = new PinotConfiguration(mapConfig);
-    PinotConfiguration subsetConfig = pinotConfig.subset("pinot.audit");
-    Map<String, Object> configMap = subsetConfig.toMap();
-    return OBJECT_MAPPER.convertValue(configMap, AuditConfig.class);
+    return AuditConfigChangeListener.buildConfigFromCluster(clusterConfigs);
   }
 }

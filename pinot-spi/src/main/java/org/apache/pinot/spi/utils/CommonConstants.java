@@ -72,6 +72,17 @@ public class CommonConstants {
   public static final String CONFIG_OF_PINOT_TAR_COMPRESSION_CODEC_NAME = "pinot.tar.compression.codec.name";
   public static final String QUERY_WORKLOAD = "queryWorkload";
 
+  // Audit logging configuration constants
+  public interface AuditLog {
+
+    String CONFIG_OF_AUDIT_ENABLED = "pinot.audit.enabled";
+    String CONFIG_OF_AUDIT_CAPTURE_REQUEST_PAYLOAD = "pinot.audit.capture.request.payload";
+    String CONFIG_OF_AUDIT_EXCLUDED_ENDPOINTS = "pinot.audit.excluded.endpoints";
+    String CONFIG_OF_AUDIT_CAPTURE_REQUEST_HEADERS = "pinot.audit.capture.request.headers";
+    String CONFIG_OF_AUDIT_MAX_PAYLOAD_SIZE = "pinot.audit.max.payload.size";
+    String CONFIG_OF_AUDIT_LOGGER_NAME = "pinot.audit.logger.name";
+  }
+
   public static class Lucene {
     public static final String CONFIG_OF_LUCENE_MAX_CLAUSE_COUNT = "pinot.lucene.max.clause.count";
     public static final int DEFAULT_LUCENE_MAX_CLAUSE_COUNT = 1024;
@@ -1294,14 +1305,6 @@ public class CommonConstants {
     public static final String CONFIG_OF_MESSAGES_COUNT_REFRESH_INTERVAL_SECONDS =
         "pinot.server.messagesCount.refreshIntervalSeconds";
     public static final int DEFAULT_MESSAGES_COUNT_REFRESH_INTERVAL_SECONDS = 30;
-
-    // Audit logging configuration constants
-    public static final String CONFIG_OF_AUDIT_ENABLED = "pinot.audit.enabled";
-    public static final String CONFIG_OF_AUDIT_CAPTURE_REQUEST_PAYLOAD = "pinot.audit.capture.request.payload";
-    public static final String CONFIG_OF_AUDIT_EXCLUDED_ENDPOINTS = "pinot.audit.excluded.endpoints";
-    public static final String CONFIG_OF_AUDIT_CAPTURE_REQUEST_HEADERS = "pinot.audit.capture.request.headers";
-    public static final String CONFIG_OF_AUDIT_MAX_PAYLOAD_SIZE = "pinot.audit.max.payload.size";
-    public static final String CONFIG_OF_AUDIT_LOGGER_NAME = "pinot.audit.logger.name";
 
     public static class SegmentCompletionProtocol {
       public static final String PREFIX_OF_CONFIG_OF_SEGMENT_UPLOADER = "pinot.server.segment.uploader";
