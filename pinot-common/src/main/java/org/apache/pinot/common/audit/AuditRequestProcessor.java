@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.inject.Inject;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
@@ -46,7 +47,8 @@ public class AuditRequestProcessor {
   private static final Logger LOG = LoggerFactory.getLogger(AuditRequestProcessor.class);
   private static final String ANONYMOUS = "anonymous";
 
-  private final AuditConfigManager _configManager;
+  @Inject
+  private AuditConfigManager _configManager;
 
   public AuditRequestProcessor(AuditConfigManager configManager) {
     _configManager = configManager;

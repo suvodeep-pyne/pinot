@@ -18,7 +18,17 @@
  */
 package org.apache.pinot.common.audit;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.apache.commons.configuration2.MapConfiguration;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pinot.spi.config.provider.PinotClusterConfigChangeListener;
 import org.apache.pinot.spi.config.provider.PinotClusterConfigProvider;
+import org.apache.pinot.spi.env.PinotConfiguration;
+import org.apache.pinot.spi.utils.CommonConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,26 +40,16 @@ import static java.util.Objects.requireNonNull;
  * Handles dynamic configuration updates from cluster configuration changes.
  * Self-registers with the provided cluster config provider.
  */
-public final class AuditConfigManager {
+public final class AuditConfigManager implements PinotClusterConfigChangeListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(AuditConfigManager.class);
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  private volatile AuditConfig _currentConfig;
+  private volatile AuditConfig _currentConfig = new AuditConfig();
 
-  /**
-   * Creates a new AuditConfigManager and registers with the cluster config provider.
-   *
-   * @param clusterConfigProvider the cluster config provider to register with
-   */
-  public AuditConfigManager(PinotClusterConfigProvider clusterConfigProvider) {
-    requireNonNull(clusterConfigProvider, "Cluster config provider cannot be null");
-
-    // Initialize with default configuration
-    _currentConfig = new AuditConfig();
-
-    // Create and register the config change listener
-    AuditConfigChangeListener configChangeListener = new AuditConfigChangeListener(this);
-    boolean registered = clusterConfigProvider.registerClusterConfigChangeListener(configChangeListener);
+  public void register(PinotClusterConfigProvider clusterConfigProvider) {
+    // Register this manager as the config change listener
+    boolean registered = clusterConfigProvider.registerClusterConfigChangeListener(this);
 
     if (registered) {
       LOG.info("Successfully registered audit config change listener with cluster config provider");
@@ -95,13 +95,127 @@ public final class AuditConfigManager {
 
   /**
    * Checks if the given endpoint should be excluded from audit logging.
-   * Uses the utility method from AuditConfigChangeListener.
    *
    * @param endpoint the endpoint path to check
    * @return true if the endpoint should be excluded
    */
   public boolean isEndpointExcluded(String endpoint) {
-    return AuditConfigChangeListener.isEndpointExcluded(endpoint, _currentConfig.getExcludedEndpoints());
+    return isEndpointExcluded(endpoint, _currentConfig.getExcludedEndpoints());
+  }
+
+  @Override
+  public void onChange(Set<String> changedConfigs, Map<String, String> clusterConfigs) {
+    if (!hasAuditConfigChanges(changedConfigs)) {
+      LOG.debug("ChangedConfigs: {} does not contain audit configs. Skipping updates", changedConfigs);
+      return;
+    }
+
+    LOG.info("Audit configuration changed. ChangedConfigs: {}", changedConfigs);
+
+    try {
+      updateAuditConfiguration(clusterConfigs);
+      LOG.info("Successfully updated audit configuration");
+    } catch (Exception e) {
+      LOG.error("Failed to update audit configuration", e);
+    }
+  }
+
+  @VisibleForTesting
+  static AuditConfig buildFromClusterConfig(Map<String, String> clusterConfigs) {
+    return mapPrefixedConfigToObject(clusterConfigs, CommonConstants.AuditLogConstants.PREFIX, AuditConfig.class);
+  }
+
+  /**
+   * Maps cluster configuration properties with a common prefix to a POJO using Jackson.
+   * Uses PinotConfiguration.subset() to extract properties with the given prefix and
+   * Jackson's convertValue() for automatic object mapping.
+   */
+  private static <T> T mapPrefixedConfigToObject(Map<String, String> clusterConfigs, String prefix,
+      Class<T> configClass) {
+    final MapConfiguration mapConfig = new MapConfiguration(clusterConfigs);
+    final PinotConfiguration subsetConfig = new PinotConfiguration(mapConfig).subset(prefix);
+    return OBJECT_MAPPER.convertValue(subsetConfig.toMap(), configClass);
+  }
+
+  /**
+   * Checks if the given endpoint should be excluded from audit logging.
+   * Supports simple wildcard matching with '*' character.
+   */
+  public static boolean isEndpointExcluded(String endpoint, String excludedEndpointsString) {
+    if (StringUtils.isBlank(endpoint) || StringUtils.isBlank(excludedEndpointsString)) {
+      return false;
+    }
+
+    Set<String> excludedEndpoints = parseExcludedEndpoints(excludedEndpointsString);
+    if (excludedEndpoints.isEmpty()) {
+      return false;
+    }
+
+    // Check for exact matches first
+    if (excludedEndpoints.contains(endpoint)) {
+      return true;
+    }
+
+    // Check for wildcard matches
+    for (String excluded : excludedEndpoints) {
+      if (excluded.contains("*")) {
+        if (matchesWildcard(endpoint, excluded)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private static Set<String> parseExcludedEndpoints(String excludedEndpointsString) {
+    Set<String> excludedEndpoints = new HashSet<>();
+    if (StringUtils.isNotBlank(excludedEndpointsString)) {
+      String[] endpoints = excludedEndpointsString.split(",");
+      for (String endpoint : endpoints) {
+        String trimmed = endpoint.trim();
+        if (StringUtils.isNotBlank(trimmed)) {
+          excludedEndpoints.add(trimmed);
+        }
+      }
+    }
+    return excludedEndpoints;
+  }
+
+  private static boolean matchesWildcard(String endpoint, String pattern) {
+    if (pattern.equals("*")) {
+      return true;
+    }
+    if (pattern.endsWith("/*")) {
+      String prefix = pattern.substring(0, pattern.length() - 2);
+      return endpoint.startsWith(prefix);
+    }
+    if (pattern.startsWith("*/")) {
+      String suffix = pattern.substring(2);
+      return endpoint.endsWith(suffix);
+    }
+    return false;
+  }
+
+  private boolean hasAuditConfigChanges(Set<String> changedConfigs) {
+    return changedConfigs.stream().anyMatch(s -> s.startsWith(CommonConstants.AuditLogConstants.PREFIX + "."));
+  }
+
+  private void updateAuditConfiguration(Map<String, String> clusterConfigs) {
+    // Validate the new configuration first
+    AuditConfigValidator.ValidationResult validationResult = AuditConfigValidator.validate(clusterConfigs);
+
+    if (!validationResult.isValid()) {
+      LOG.error("Invalid audit configuration detected, keeping previous configuration: {}",
+          validationResult.getErrorMessage());
+      return;
+    }
+
+    // Build new configuration from cluster configs
+    final AuditConfig newConfig = buildFromClusterConfig(clusterConfigs);
+
+    LOG.info("Updating audit configuration: {}", newConfig);
+    updateConfiguration(newConfig);
   }
 
   @Override

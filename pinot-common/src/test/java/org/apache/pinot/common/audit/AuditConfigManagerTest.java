@@ -26,7 +26,7 @@ import static org.apache.pinot.spi.utils.CommonConstants.AuditLogConstants.*;
 import static org.testng.Assert.*;
 
 
-public class AuditConfigChangeListenerTest {
+public class AuditConfigManagerTest {
 
   @Test
   public void testConfigurationKeyMappingComplete() {
@@ -39,7 +39,7 @@ public class AuditConfigChangeListenerTest {
     clusterConfigs.put(CONFIG_OF_AUDIT_LOG_LOGGER_NAME, "custom.audit.logger");
     clusterConfigs.put(CONFIG_OF_AUDIT_LOG_EXCLUDED_ENDPOINTS, "/health,/metrics");
 
-    // Build config using the same method as the listener
+    // Build config using the same method as the manager
     AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify all properties were correctly mapped
@@ -63,7 +63,7 @@ public class AuditConfigChangeListenerTest {
     clusterConfigs.put("pinot.audit.logger.name", "test.logger");
     clusterConfigs.put("pinot.audit.excluded.endpoints", "/debug/*,/admin");
 
-    // Build config using the same method as the listener
+    // Build config using the same method as the manager
     AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify Jackson correctly mapped the dotted property names
@@ -82,7 +82,7 @@ public class AuditConfigChangeListenerTest {
     clusterConfigs.put(CONFIG_OF_AUDIT_LOG_ENABLED, "true");
     clusterConfigs.put(CONFIG_OF_AUDIT_LOG_LOGGER_NAME, "partial.logger");
 
-    // Build config using the same method as the listener
+    // Build config using the same method as the manager
     AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify enabled and logger name are set, others use defaults
@@ -101,7 +101,7 @@ public class AuditConfigChangeListenerTest {
     // Test that empty configuration uses all defaults
     Map<String, String> clusterConfigs = new HashMap<>();
 
-    // Build config using the same method as the listener
+    // Build config using the same method as the manager
     AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify all defaults are used
@@ -122,7 +122,7 @@ public class AuditConfigChangeListenerTest {
     clusterConfigs.put("pinot.controller.port", "9000");
     clusterConfigs.put(CONFIG_OF_AUDIT_LOG_ENABLED, "true");
 
-    // Build config using the same method as the listener
+    // Build config using the same method as the manager
     AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify only audit configuration was processed
@@ -138,11 +138,11 @@ public class AuditConfigChangeListenerTest {
     // Test exact endpoint matching
     String excludedEndpoints = "/health,/metrics,/debug";
 
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/health", excludedEndpoints));
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/metrics", excludedEndpoints));
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/debug", excludedEndpoints));
-    assertFalse(AuditConfigChangeListener.isEndpointExcluded("/api/v1/tables", excludedEndpoints));
-    assertFalse(AuditConfigChangeListener.isEndpointExcluded("/healthcheck", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/health", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/metrics", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/debug", excludedEndpoints));
+    assertFalse(AuditConfigManager.isEndpointExcluded("/api/v1/tables", excludedEndpoints));
+    assertFalse(AuditConfigManager.isEndpointExcluded("/healthcheck", excludedEndpoints));
   }
 
   @Test
@@ -151,36 +151,36 @@ public class AuditConfigChangeListenerTest {
     String excludedEndpoints = "/debug/*,*/internal,/admin/status";
 
     // Test prefix wildcard - /debug/* matches anything starting with /debug
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/debug/config", excludedEndpoints));
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/debug/threads", excludedEndpoints));
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/debug", excludedEndpoints)); // exact also matches prefix
+    assertTrue(AuditConfigManager.isEndpointExcluded("/debug/config", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/debug/threads", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/debug", excludedEndpoints)); // exact also matches prefix
 
     // Test suffix wildcard
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/api/internal", excludedEndpoints));
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/system/internal", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/api/internal", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/system/internal", excludedEndpoints));
 
     // Test exact match still works
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/admin/status", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/admin/status", excludedEndpoints));
 
     // Test non-matches
-    assertFalse(AuditConfigChangeListener.isEndpointExcluded("/api/v1/tables", excludedEndpoints));
+    assertFalse(AuditConfigManager.isEndpointExcluded("/api/v1/tables", excludedEndpoints));
   }
 
   @Test
   public void testEndpointExclusionEdgeCases() {
     // Test edge cases for endpoint exclusion
-    assertFalse(AuditConfigChangeListener.isEndpointExcluded("", "/health"));
-    assertFalse(AuditConfigChangeListener.isEndpointExcluded("/health", ""));
-    assertFalse(AuditConfigChangeListener.isEndpointExcluded(null, "/health"));
-    assertFalse(AuditConfigChangeListener.isEndpointExcluded("/health", null));
+    assertFalse(AuditConfigManager.isEndpointExcluded("", "/health"));
+    assertFalse(AuditConfigManager.isEndpointExcluded("/health", ""));
+    assertFalse(AuditConfigManager.isEndpointExcluded(null, "/health"));
+    assertFalse(AuditConfigManager.isEndpointExcluded("/health", null));
 
     // Test universal wildcard
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/anything", "*"));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/anything", "*"));
 
     // Test comma handling
     String excludedEndpoints = " /health , /metrics , ";
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/health", excludedEndpoints));
-    assertTrue(AuditConfigChangeListener.isEndpointExcluded("/metrics", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/health", excludedEndpoints));
+    assertTrue(AuditConfigManager.isEndpointExcluded("/metrics", excludedEndpoints));
   }
 
   @Test
@@ -212,6 +212,6 @@ public class AuditConfigChangeListenerTest {
   }
 
   private AuditConfig buildFromClusterConfig(Map<String, String> clusterConfigs) {
-    return AuditConfigChangeListener.buildFromClusterConfig(clusterConfigs);
+    return AuditConfigManager.buildFromClusterConfig(clusterConfigs);
   }
 }

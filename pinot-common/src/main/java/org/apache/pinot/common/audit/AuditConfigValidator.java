@@ -22,8 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
-
-import static org.apache.pinot.spi.utils.CommonConstants.AuditLogConstants.*;
+import org.apache.pinot.spi.utils.CommonConstants.AuditLogConstants;
 
 
 /**
@@ -45,15 +44,16 @@ public final class AuditConfigValidator {
     List<String> errors = new ArrayList<>();
 
     // Validate boolean values
-    validateBoolean(configs, CONFIG_OF_AUDIT_LOG_ENABLED, errors);
-    validateBoolean(configs, CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_PAYLOAD, errors);
-    validateBoolean(configs, CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_HEADERS, errors);
+    validateBoolean(configs, AuditLogConstants.CONFIG_OF_AUDIT_LOG_ENABLED, errors);
+    validateBoolean(configs, AuditLogConstants.CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_PAYLOAD, errors);
+    validateBoolean(configs, AuditLogConstants.CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_HEADERS, errors);
 
     // Validate integer values
-    validateIntegerRange(configs, CONFIG_OF_AUDIT_LOG_MAX_PAYLOAD_SIZE, 0, 1048576, errors); // 0 to 1MB
+    validateIntegerRange(configs, AuditLogConstants.CONFIG_OF_AUDIT_LOG_MAX_PAYLOAD_SIZE, 0, 1048576,
+        errors); // 0 to 1MB
 
     // Validate string values
-    validateLoggerName(configs, CONFIG_OF_AUDIT_LOG_LOGGER_NAME, errors);
+    validateLoggerName(configs, AuditLogConstants.CONFIG_OF_AUDIT_LOG_LOGGER_NAME, errors);
 
     return new ValidationResult(errors);
   }
