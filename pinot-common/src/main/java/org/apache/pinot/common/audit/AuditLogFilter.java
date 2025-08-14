@@ -44,10 +44,6 @@ public class AuditLogFilter implements ContainerRequestFilter {
   @Context
   HttpHeaders _httpHeaders;
 
-  public AuditLogFilter(AuditConfigManager configManager) {
-    _auditRequestProcessor = new AuditRequestProcessor(configManager);
-  }
-
   @Override
   public void filter(ContainerRequestContext requestContext)
       throws IOException {

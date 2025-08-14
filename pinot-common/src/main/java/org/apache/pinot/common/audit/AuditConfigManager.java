@@ -35,7 +35,6 @@ public final class AuditConfigManager {
   private static final Logger LOG = LoggerFactory.getLogger(AuditConfigManager.class);
 
   private volatile AuditConfig _currentConfig;
-  private final AuditConfigChangeListener _configChangeListener;
 
   /**
    * Creates a new AuditConfigManager and registers with the cluster config provider.
@@ -49,13 +48,13 @@ public final class AuditConfigManager {
     _currentConfig = new AuditConfig();
 
     // Create and register the config change listener
-    _configChangeListener = new AuditConfigChangeListener(this);
-    boolean registered = clusterConfigProvider.registerClusterConfigChangeListener(_configChangeListener);
+    AuditConfigChangeListener configChangeListener = new AuditConfigChangeListener(this);
+    boolean registered = clusterConfigProvider.registerClusterConfigChangeListener(configChangeListener);
 
     if (registered) {
       LOG.info("Successfully registered audit config change listener with cluster config provider");
     } else {
-      LOG.warn("Failed to register audit config change listener with cluster config provider");
+      LOG.error("Failed to register audit config change listener with cluster config provider");
     }
   }
 

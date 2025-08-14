@@ -27,6 +27,7 @@ import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pinot.spi.config.provider.PinotClusterConfigChangeListener;
 import org.apache.pinot.spi.env.PinotConfiguration;
+import org.apache.pinot.spi.utils.CommonConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +41,6 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
   private static final Logger LOG = LoggerFactory.getLogger(AuditConfigChangeListener.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  public static final String AUDIT_CONFIG_PREFIX = "pinot.audit";
-
   private final AuditConfigManager _configManager;
 
   AuditConfigChangeListener(AuditConfigManager configManager) {
@@ -49,8 +48,8 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
   }
 
   @VisibleForTesting
-  static AuditConfig buildConfigFromCluster(Map<String, String> clusterConfigs) {
-    return mapPrefixedConfigToObject(clusterConfigs, AUDIT_CONFIG_PREFIX, AuditConfig.class);
+  static AuditConfig buildFromClusterConfig(Map<String, String> clusterConfigs) {
+    return mapPrefixedConfigToObject(clusterConfigs, CommonConstants.AuditLogConstants.PREFIX, AuditConfig.class);
   }
 
   /**
@@ -143,7 +142,7 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
   }
 
   private boolean hasAuditConfigChanges(Set<String> changedConfigs) {
-    return changedConfigs.stream().anyMatch(s -> s.startsWith(AUDIT_CONFIG_PREFIX + "."));
+    return changedConfigs.stream().anyMatch(s -> s.startsWith(CommonConstants.AuditLogConstants.PREFIX + "."));
   }
 
   private void updateAuditConfiguration(Map<String, String> clusterConfigs) {
@@ -151,13 +150,13 @@ final class AuditConfigChangeListener implements PinotClusterConfigChangeListene
     AuditConfigValidator.ValidationResult validationResult = AuditConfigValidator.validate(clusterConfigs);
 
     if (!validationResult.isValid()) {
-      LOG.warn("Invalid audit configuration detected, keeping previous configuration: {}",
+      LOG.error("Invalid audit configuration detected, keeping previous configuration: {}",
           validationResult.getErrorMessage());
       return;
     }
 
     // Build new configuration from cluster configs
-    AuditConfig newConfig = buildConfigFromCluster(clusterConfigs);
+    final AuditConfig newConfig = buildFromClusterConfig(clusterConfigs);
 
     LOG.info("Updating audit configuration: {}", newConfig);
     _configManager.updateConfiguration(newConfig);

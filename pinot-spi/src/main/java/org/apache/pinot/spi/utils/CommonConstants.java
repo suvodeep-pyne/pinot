@@ -73,14 +73,14 @@ public class CommonConstants {
   public static final String QUERY_WORKLOAD = "queryWorkload";
 
   // Audit logging configuration constants
-  public interface AuditLog {
-
-    String CONFIG_OF_AUDIT_ENABLED = "pinot.audit.enabled";
-    String CONFIG_OF_AUDIT_CAPTURE_REQUEST_PAYLOAD = "pinot.audit.capture.request.payload";
-    String CONFIG_OF_AUDIT_EXCLUDED_ENDPOINTS = "pinot.audit.excluded.endpoints";
-    String CONFIG_OF_AUDIT_CAPTURE_REQUEST_HEADERS = "pinot.audit.capture.request.headers";
-    String CONFIG_OF_AUDIT_MAX_PAYLOAD_SIZE = "pinot.audit.max.payload.size";
-    String CONFIG_OF_AUDIT_LOGGER_NAME = "pinot.audit.logger.name";
+  public static class AuditLogConstants {
+    public static final String PREFIX = "pinot.audit";
+    public static final String CONFIG_OF_AUDIT_LOG_ENABLED = PREFIX + ".enabled";
+    public static final String CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_PAYLOAD = PREFIX + ".capture.request.payload";
+    public static final String CONFIG_OF_AUDIT_LOG_EXCLUDED_ENDPOINTS = PREFIX + ".excluded.endpoints";
+    public static final String CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_HEADERS = PREFIX + ".capture.request.headers";
+    public static final String CONFIG_OF_AUDIT_LOG_MAX_PAYLOAD_SIZE = PREFIX + ".max.payload.size";
+    public static final String CONFIG_OF_AUDIT_LOG_LOGGER_NAME = PREFIX + ".logger.name";
   }
 
   public static class Lucene {

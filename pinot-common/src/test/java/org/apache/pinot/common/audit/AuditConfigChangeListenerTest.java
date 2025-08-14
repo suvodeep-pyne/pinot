@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.testng.annotations.Test;
 
-import static org.apache.pinot.spi.utils.CommonConstants.AuditLog.*;
+import static org.apache.pinot.spi.utils.CommonConstants.AuditLogConstants.*;
 import static org.testng.Assert.*;
 
 
@@ -32,15 +32,15 @@ public class AuditConfigChangeListenerTest {
   public void testConfigurationKeyMappingComplete() {
     // Test all configuration keys map correctly to AuditConfig properties
     Map<String, String> clusterConfigs = new HashMap<>();
-    clusterConfigs.put(CONFIG_OF_AUDIT_ENABLED, "true");
-    clusterConfigs.put(CONFIG_OF_AUDIT_CAPTURE_REQUEST_PAYLOAD, "false");
-    clusterConfigs.put(CONFIG_OF_AUDIT_CAPTURE_REQUEST_HEADERS, "false");
-    clusterConfigs.put(CONFIG_OF_AUDIT_MAX_PAYLOAD_SIZE, "8192");
-    clusterConfigs.put(CONFIG_OF_AUDIT_LOGGER_NAME, "custom.audit.logger");
-    clusterConfigs.put(CONFIG_OF_AUDIT_EXCLUDED_ENDPOINTS, "/health,/metrics");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_ENABLED, "true");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_PAYLOAD, "false");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_HEADERS, "false");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_MAX_PAYLOAD_SIZE, "8192");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_LOGGER_NAME, "custom.audit.logger");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_EXCLUDED_ENDPOINTS, "/health,/metrics");
 
     // Build config using the same method as the listener
-    AuditConfig config = buildConfigFromCluster(clusterConfigs);
+    AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify all properties were correctly mapped
     assertNotNull(config);
@@ -64,7 +64,7 @@ public class AuditConfigChangeListenerTest {
     clusterConfigs.put("pinot.audit.excluded.endpoints", "/debug/*,/admin");
 
     // Build config using the same method as the listener
-    AuditConfig config = buildConfigFromCluster(clusterConfigs);
+    AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify Jackson correctly mapped the dotted property names
     assertTrue(config.isEnabled());
@@ -79,11 +79,11 @@ public class AuditConfigChangeListenerTest {
   public void testPartialConfiguration() {
     // Test that partial configuration works with defaults
     Map<String, String> clusterConfigs = new HashMap<>();
-    clusterConfigs.put(CONFIG_OF_AUDIT_ENABLED, "true");
-    clusterConfigs.put(CONFIG_OF_AUDIT_LOGGER_NAME, "partial.logger");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_ENABLED, "true");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_LOGGER_NAME, "partial.logger");
 
     // Build config using the same method as the listener
-    AuditConfig config = buildConfigFromCluster(clusterConfigs);
+    AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify enabled and logger name are set, others use defaults
     assertNotNull(config);
@@ -102,7 +102,7 @@ public class AuditConfigChangeListenerTest {
     Map<String, String> clusterConfigs = new HashMap<>();
 
     // Build config using the same method as the listener
-    AuditConfig config = buildConfigFromCluster(clusterConfigs);
+    AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify all defaults are used
     assertNotNull(config);
@@ -120,10 +120,10 @@ public class AuditConfigChangeListenerTest {
     Map<String, String> clusterConfigs = new HashMap<>();
     clusterConfigs.put("pinot.controller.host", "localhost");
     clusterConfigs.put("pinot.controller.port", "9000");
-    clusterConfigs.put(CONFIG_OF_AUDIT_ENABLED, "true");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_ENABLED, "true");
 
     // Build config using the same method as the listener
-    AuditConfig config = buildConfigFromCluster(clusterConfigs);
+    AuditConfig config = buildFromClusterConfig(clusterConfigs);
 
     // Verify only audit configuration was processed
     assertNotNull(config);
@@ -186,24 +186,24 @@ public class AuditConfigChangeListenerTest {
   @Test
   public void testConfigurationKeyConstants() {
     // Verify that all expected configuration keys are defined and have correct values
-    assertEquals(CONFIG_OF_AUDIT_ENABLED, "pinot.audit.enabled");
-    assertEquals(CONFIG_OF_AUDIT_CAPTURE_REQUEST_PAYLOAD, "pinot.audit.capture.request.payload");
-    assertEquals(CONFIG_OF_AUDIT_CAPTURE_REQUEST_HEADERS, "pinot.audit.capture.request.headers");
-    assertEquals(CONFIG_OF_AUDIT_MAX_PAYLOAD_SIZE, "pinot.audit.max.payload.size");
-    assertEquals(CONFIG_OF_AUDIT_LOGGER_NAME, "pinot.audit.logger.name");
-    assertEquals(CONFIG_OF_AUDIT_EXCLUDED_ENDPOINTS, "pinot.audit.excluded.endpoints");
+    assertEquals(CONFIG_OF_AUDIT_LOG_ENABLED, "pinot.audit.enabled");
+    assertEquals(CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_PAYLOAD, "pinot.audit.capture.request.payload");
+    assertEquals(CONFIG_OF_AUDIT_LOG_CAPTURE_REQUEST_HEADERS, "pinot.audit.capture.request.headers");
+    assertEquals(CONFIG_OF_AUDIT_LOG_MAX_PAYLOAD_SIZE, "pinot.audit.max.payload.size");
+    assertEquals(CONFIG_OF_AUDIT_LOG_LOGGER_NAME, "pinot.audit.logger.name");
+    assertEquals(CONFIG_OF_AUDIT_LOG_EXCLUDED_ENDPOINTS, "pinot.audit.excluded.endpoints");
   }
 
   @Test
   public void testInvalidConfigurationHandling() {
     // Test that invalid configuration values cause Jackson conversion to fail
     Map<String, String> clusterConfigs = new HashMap<>();
-    clusterConfigs.put(CONFIG_OF_AUDIT_ENABLED, "invalid_boolean");
-    clusterConfigs.put(CONFIG_OF_AUDIT_MAX_PAYLOAD_SIZE, "not_a_number");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_ENABLED, "invalid_boolean");
+    clusterConfigs.put(CONFIG_OF_AUDIT_LOG_MAX_PAYLOAD_SIZE, "not_a_number");
 
     // Build config - Jackson should throw exception for invalid numeric values
     try {
-      AuditConfig config = buildConfigFromCluster(clusterConfigs);
+      AuditConfig config = buildFromClusterConfig(clusterConfigs);
       fail("Expected Jackson to throw exception for invalid numeric value");
     } catch (IllegalArgumentException e) {
       // Expected - Jackson conversion should fail for invalid numeric values
@@ -211,7 +211,7 @@ public class AuditConfigChangeListenerTest {
     }
   }
 
-  private AuditConfig buildConfigFromCluster(Map<String, String> clusterConfigs) {
-    return AuditConfigChangeListener.buildConfigFromCluster(clusterConfigs);
+  private AuditConfig buildFromClusterConfig(Map<String, String> clusterConfigs) {
+    return AuditConfigChangeListener.buildFromClusterConfig(clusterConfigs);
   }
 }
