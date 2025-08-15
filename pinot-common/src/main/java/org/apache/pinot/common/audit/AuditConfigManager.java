@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import javax.inject.Singleton;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pinot.spi.config.provider.PinotClusterConfigChangeListener;
@@ -40,6 +41,7 @@ import static java.util.Objects.requireNonNull;
  * Handles dynamic configuration updates from cluster configuration changes.
  * Self-registers with the provided cluster config provider.
  */
+@Singleton
 public final class AuditConfigManager implements PinotClusterConfigChangeListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(AuditConfigManager.class);

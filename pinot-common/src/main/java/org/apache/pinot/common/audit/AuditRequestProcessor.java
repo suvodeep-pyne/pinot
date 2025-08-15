@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
@@ -42,6 +43,7 @@ import org.slf4j.LoggerFactory;
  * and request payload capture for audit logging purposes.
  * Uses dynamic configuration to control audit behavior.
  */
+@Singleton
 public class AuditRequestProcessor {
 
   private static final Logger LOG = LoggerFactory.getLogger(AuditRequestProcessor.class);
@@ -49,10 +51,6 @@ public class AuditRequestProcessor {
 
   @Inject
   private AuditConfigManager _configManager;
-
-  public AuditRequestProcessor(AuditConfigManager configManager) {
-    _configManager = configManager;
-  }
 
   public AuditEvent processRequest(ContainerRequestContext requestContext, HttpHeaders httpHeaders, String remoteAddr) {
     try {

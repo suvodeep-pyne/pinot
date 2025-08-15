@@ -21,6 +21,7 @@ package org.apache.pinot.common.audit;
 import java.io.IOException;
 import javax.inject.Inject;
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.core.Context;
@@ -33,6 +34,7 @@ import org.glassfish.grizzly.http.server.Request;
  * Supports dynamic configuration through injected AuditConfigManager.
  */
 @javax.ws.rs.ext.Provider
+@Singleton
 public class AuditLogFilter implements ContainerRequestFilter {
 
   @Inject
