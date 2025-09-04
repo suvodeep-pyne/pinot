@@ -83,7 +83,8 @@ public final class AuditConfig {
   }
 
   public void setMaxPayloadSize(int maxPayloadSize) {
-    _maxPayloadSize = maxPayloadSize;
+    // Ensure the configured value doesn't exceed the hard limit
+    _maxPayloadSize = Math.min(maxPayloadSize, MAX_AUDIT_PAYLOAD_SIZE_BYTES);
   }
 
   public String getUrlFilterExcludePatterns() {

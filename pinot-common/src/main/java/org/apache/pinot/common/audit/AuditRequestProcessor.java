@@ -21,6 +21,7 @@ package org.apache.pinot.common.audit;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -228,8 +229,12 @@ public class AuditRequestProcessor {
    * Restores the input stream for downstream processing.
    * Limits the amount of data read based on configuration.
    *
+   * For payloads larger than 65KB, this method uses a different strategy to ensure
+   * downstream consumers can still read the full payload. It reads the entire stream
+   * into memory (if reasonable) and creates a new stream for downstream processing.
+   *
    * @param requestContext the request context
-   * @param maxPayloadSize maximum bytes to read from the request body
+   * @param maxPayloadSize maximum bytes to read from the request body for audit
    * @return the request body as string (potentially truncated)
    */
   @VisibleForTesting
@@ -243,25 +248,56 @@ public class AuditRequestProcessor {
       return null;
     }
 
+    // Ensure maxPayloadSize doesn't exceed the hard limit
+    final int effectiveMaxPayloadSize = Math.min(maxPayloadSize, AuditConfig.MAX_AUDIT_PAYLOAD_SIZE_BYTES);
+
     try {
-      final int bufferSize = Math.min(maxPayloadSize + 1024, AuditConfig.MAX_AUDIT_PAYLOAD_SIZE_BYTES);
-      final BufferedInputStream bufferedStream = new BufferedInputStream(originalStream, bufferSize);
-      requestContext.setEntityStream(bufferedStream);
-      bufferedStream.mark(maxPayloadSize + 1);
+      // For audit logging, we only need up to effectiveMaxPayloadSize bytes
+      // But we need to preserve the full stream for downstream consumers
 
-      final InputStream limitedStream = ByteStreams.limit(bufferedStream, maxPayloadSize);
-      final byte[] capturedBytes = ByteStreams.toByteArray(limitedStream);
+      // Strategy: Use mark/reset for small payloads, full buffering for large payloads
+      // We'll peek at the stream to determine its size
+      final int peekBufferSize = effectiveMaxPayloadSize + 1024;
+      final BufferedInputStream bufferedStream = new BufferedInputStream(originalStream, peekBufferSize);
+      bufferedStream.mark(peekBufferSize);
 
-      try {
-        bufferedStream.reset();
-      } catch (IOException resetException) {
-        // error because it can affect downstream consumers from processing the request. This API call will fail.
-        LOG.error("Failed to reset stream for downstream consumers", resetException);
+      // Read up to effectiveMaxPayloadSize bytes for audit
+      final byte[] auditBytes = new byte[effectiveMaxPayloadSize];
+      int totalRead = 0;
+      int bytesRead;
+      while (totalRead < effectiveMaxPayloadSize
+          && (bytesRead = bufferedStream.read(auditBytes, totalRead, effectiveMaxPayloadSize - totalRead)) != -1) {
+        totalRead += bytesRead;
       }
 
-      if (capturedBytes.length > 0) {
-        String requestBody = new String(capturedBytes, StandardCharsets.UTF_8);
-        if (capturedBytes.length >= maxPayloadSize) {
+      // Check if there's more data (to determine if truncation is needed)
+      boolean hasMoreData = bufferedStream.read() != -1;
+
+      try {
+        // Try to reset for downstream consumers
+        bufferedStream.reset();
+        requestContext.setEntityStream(bufferedStream);
+      } catch (IOException resetException) {
+        // Reset failed - likely because payload is too large for buffer
+        // In this case, we need to read the entire stream and create a new one
+        LOG.warn("Stream reset failed for large payload, creating new stream for downstream consumers");
+
+        // Read the rest of the original stream
+        byte[] remainingBytes = ByteStreams.toByteArray(bufferedStream);
+
+        // Combine what we've read so far with the remaining bytes
+        byte[] fullPayload = new byte[totalRead + remainingBytes.length];
+        System.arraycopy(auditBytes, 0, fullPayload, 0, totalRead);
+        System.arraycopy(remainingBytes, 0, fullPayload, totalRead, remainingBytes.length);
+
+        // Create a new stream with the full payload for downstream consumers
+        requestContext.setEntityStream(new ByteArrayInputStream(fullPayload));
+      }
+
+      // Prepare the audit response
+      if (totalRead > 0) {
+        String requestBody = new String(auditBytes, 0, totalRead, StandardCharsets.UTF_8);
+        if (hasMoreData) {
           requestBody += TRUNCATION_MARKER;
         }
         return requestBody;

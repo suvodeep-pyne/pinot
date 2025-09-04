@@ -127,6 +127,24 @@ public class AuditConfigManagerTest {
   }
 
   @Test
+  public void testMaxPayloadSizeValidation() {
+    // Test that maxPayloadSize is capped at MAX_AUDIT_PAYLOAD_SIZE_BYTES
+    AuditConfig config = new AuditConfig();
+
+    // Try to set a value larger than the hard limit
+    config.setMaxPayloadSize(100000); // 100KB, exceeds 65KB limit
+    assertThat(config.getMaxPayloadSize()).isEqualTo(AuditConfig.MAX_AUDIT_PAYLOAD_SIZE_BYTES);
+
+    // Set a value within the limit
+    config.setMaxPayloadSize(10000); // 10KB, within limit
+    assertThat(config.getMaxPayloadSize()).isEqualTo(10000);
+
+    // Set exactly at the limit
+    config.setMaxPayloadSize(AuditConfig.MAX_AUDIT_PAYLOAD_SIZE_BYTES);
+    assertThat(config.getMaxPayloadSize()).isEqualTo(AuditConfig.MAX_AUDIT_PAYLOAD_SIZE_BYTES);
+  }
+
+  @Test
   public void testBuildFromClusterConfigDirectly() {
     // Given
     Map<String, String> properties = new HashMap<>();

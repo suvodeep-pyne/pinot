@@ -483,7 +483,9 @@ public class AuditRequestProcessorTest {
 
     String result = _processor.readRequestBody(_requestContext, 10);
 
-    assertThat(result).isEqualTo(exactData + AuditRequestProcessor.TRUNCATION_MARKER);
+    // With the new implementation, we read exactly 10 bytes, but no more data exists
+    // so no truncation marker is added
+    assertThat(result).isEqualTo(exactData);
     verify(_requestContext).setEntityStream(any(InputStream.class));
   }
 
@@ -550,6 +552,104 @@ public class AuditRequestProcessorTest {
     assertThat(result).startsWith("AAAAAAAAAA");
     assertThat(result).endsWith(AuditRequestProcessor.TRUNCATION_MARKER);
     verify(_requestContext).setEntityStream(any(InputStream.class));
+  }
+
+  @Test
+  public void testReadRequestBodyExceeds65KBDownstreamCanReadFull()
+      throws IOException {
+    // Test with payload > 65KB to verify downstream can still read full payload
+    byte[] largeData = new byte[70000]; // 70KB, exceeds 65KB limit
+    Arrays.fill(largeData, (byte) 'B');
+    ByteArrayInputStream originalStream = new ByteArrayInputStream(largeData);
+
+    when(_requestContext.hasEntity()).thenReturn(true);
+    when(_requestContext.getEntityStream()).thenReturn(originalStream);
+
+    // Request audit capture of 10KB
+    int maxSize = 10240;
+    String result = _processor.readRequestBody(_requestContext, maxSize);
+
+    // Verify audit captured only 10KB + truncation marker
+    assertThat(result).hasSize(maxSize + AuditRequestProcessor.TRUNCATION_MARKER.length());
+    assertThat(result).startsWith("BBBBBBBBBB");
+    assertThat(result).endsWith(AuditRequestProcessor.TRUNCATION_MARKER);
+
+    // Capture the stream that was set for downstream
+    ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+    verify(_requestContext).setEntityStream(streamCaptor.capture());
+
+    // Verify downstream can read the full 70KB payload
+    InputStream capturedStream = streamCaptor.getValue();
+    byte[] downstreamData = ByteStreams.toByteArray(capturedStream);
+    assertThat(downstreamData).hasSize(70000);
+    assertThat(downstreamData[0]).isEqualTo((byte) 'B');
+    assertThat(downstreamData[69999]).isEqualTo((byte) 'B');
+  }
+
+  @Test
+  public void testReadRequestBodyAt65KBBoundary()
+      throws IOException {
+    // Test exactly at 65KB boundary
+    byte[] exactData = new byte[65536]; // Exactly 65KB
+    Arrays.fill(exactData, (byte) 'C');
+    ByteArrayInputStream stream = new ByteArrayInputStream(exactData);
+
+    when(_requestContext.hasEntity()).thenReturn(true);
+    when(_requestContext.getEntityStream()).thenReturn(stream);
+
+    // Request max audit capture (should be capped at 65KB)
+    int maxSize = 100000; // Request more than 65KB
+    String result = _processor.readRequestBody(_requestContext, maxSize);
+
+    // Should capture all 65KB without truncation marker since no more data exists
+    assertThat(result).hasSize(65536);
+    assertThat(result).startsWith("CCCCCCCCCC");
+    assertThat(result.charAt(65535)).isEqualTo('C');
+
+    // Verify downstream gets the full stream
+    ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+    verify(_requestContext).setEntityStream(streamCaptor.capture());
+
+    InputStream capturedStream = streamCaptor.getValue();
+    byte[] downstreamData = ByteStreams.toByteArray(capturedStream);
+    assertThat(downstreamData).hasSize(65536);
+  }
+
+  @Test
+  public void testReadRequestBodyHugePayloadDownstreamIntegrity()
+      throws IOException {
+    // Test with very large payload (200KB) to ensure fallback mechanism works
+    byte[] hugeData = new byte[204800]; // 200KB
+    for (int i = 0; i < hugeData.length; i++) {
+      hugeData[i] = (byte) ('A' + (i % 26)); // Pattern: ABCD...XYZ repeating
+    }
+    ByteArrayInputStream stream = new ByteArrayInputStream(hugeData);
+
+    when(_requestContext.hasEntity()).thenReturn(true);
+    when(_requestContext.getEntityStream()).thenReturn(stream);
+
+    int maxSize = 1024; // Small audit capture
+    String result = _processor.readRequestBody(_requestContext, maxSize);
+
+    // Verify audit capture
+    assertThat(result).hasSize(maxSize + AuditRequestProcessor.TRUNCATION_MARKER.length());
+    assertThat(result.charAt(0)).isEqualTo('A');
+    assertThat(result.charAt(25)).isEqualTo('Z');
+    assertThat(result).endsWith(AuditRequestProcessor.TRUNCATION_MARKER);
+
+    // Verify downstream can read full payload with correct pattern
+    ArgumentCaptor<InputStream> streamCaptor = ArgumentCaptor.forClass(InputStream.class);
+    verify(_requestContext).setEntityStream(streamCaptor.capture());
+
+    InputStream capturedStream = streamCaptor.getValue();
+    byte[] downstreamData = ByteStreams.toByteArray(capturedStream);
+    assertThat(downstreamData).hasSize(204800);
+
+    // Verify pattern integrity at various points
+    assertThat(downstreamData[0]).isEqualTo((byte) 'A');
+    assertThat(downstreamData[25]).isEqualTo((byte) 'Z');
+    assertThat(downstreamData[100000]).isEqualTo((byte) ('A' + (100000 % 26)));
+    assertThat(downstreamData[204799]).isEqualTo((byte) ('A' + (204799 % 26)));
   }
 
   @Test
